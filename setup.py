@@ -11,7 +11,11 @@ DESCRIPTION = 'Usefull tools for DL/CV projects using PyTorch'
 LONG_DESCRIPTION = (HERE / "README.md").read_text()
 LONG_DESC_TYPE = "text/markdown"
 INSTALL_REQUIRES = [
-    'torch'
+    'torch',
+    'numpy',
+    'pillow',
+    'click',
+    'rich'
 ]
 
 setup(
