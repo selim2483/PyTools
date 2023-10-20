@@ -3,7 +3,7 @@ import sys
 from typing import Optional, Tuple
 
 
-def error(msg):
+def error(msg: str):
     print('Error: ' + msg)
     sys.exit(1)
 
