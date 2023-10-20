@@ -21,14 +21,8 @@ from ..utils.path import file_ext, is_image_ext
 from ..utils.misc import error, parse_tuple, maybe_min
 
 __all__ = [
-    "open_image_folder",
-    "open_image_zip",
-    "open_lmdb",
-    "open_cifar10",
-    "open_mnist",
-    "make_transform",
-    "open_dataset",
-    "open_dest",
+    "open_image_folder", "open_image_zip", "open_lmdb", "open_cifar10",
+    "open_mnist", "make_transform", "open_dataset", "open_dest",
     "convert_dataset"
 ]
 

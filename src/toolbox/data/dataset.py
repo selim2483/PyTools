@@ -12,10 +12,7 @@ from torchvision import transforms
 
 from ..utils.misc import augment, EasyDict
 
-__all__ = [
-    "Dataset",
-    "ImageFolderDataset"
-]
+__all__ = ["Dataset", "ImageFolderDataset"]
 
 DEFAULT_TRANSFORM = transforms.Compose([
     transforms.ToTensor(),
