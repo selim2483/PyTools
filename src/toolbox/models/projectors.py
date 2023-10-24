@@ -3,6 +3,18 @@ import random
 from typing import Iterable, Union
 
 import torch
+from torch.types import _float
+
+class StaticProjector(torch.nn.Module):
+    """Base class containing basic methods for model saving and loading for
+    projectors that do not use trainable parameters (e.g. sampling, PCA).
+    """
+    def state_dict(self) :
+        return self.__dict__
+    
+    def load_state_dict(self, state_dict:dict) : 
+        for k, v in state_dict.items() :
+            self.__setattr__(k, v)
 
 
 class RandomProjector(torch.nn.Module):
@@ -11,16 +23,18 @@ class RandomProjector(torch.nn.Module):
     For consistent training, the random channels need to be generated using
     the method provided for this purpose. 
     """
-    def __init__(self, in_channels:int, all_arrangements=False):
+    def __init__(self, in_channels:int, all_arrangements:bool=False):
         """
         Args:
             in_channels (int): number of channels of images.
             all_arrangements (bool, optional): whether to test every possible
             arrangements in a deterministic order to avoid duplication. 
             This feature is usefull in the case of testing.
-            If True, the `generate()` method changes the projection channels to the next arrangement.
-            If False, the `generate()` method generates a new random arrangement.
-            Defaults to False.
+            If ``True``, the `generate()` method changes the projection channels
+            to the next arrangement.
+            If ``False``, the `generate()` method generates a new random
+            arrangement.
+            Defaults to ``False``.
         """
         super().__init__()
         self.in_channels = in_channels
@@ -53,28 +67,27 @@ class RandomProjector(torch.nn.Module):
     def forward(self, x:torch.Tensor) :
         return x[..., self.channels, :, :]
         
-class SampleProjector(torch.nn.Module) :
-
-    def __init__(self, bands) -> None:
+class SampleProjector(StaticProjector) :
+    """Projects multispectral images into into a chosen sub-color space.
+    """
+    def __init__(self, bands:Iterable[int]) -> None:
+        """
+        Args:
+            bands (Iterable[int]): Spectral bands constituting the wanted
+                subcolor space.
+        """
         super().__init__()
         self.bands = bands
 
     def forward(self, x:torch.Tensor) :
-        return x[:, self.bands, :, :]
-    
-    def state_dict(self) :
-        return self.__dict__
-    
-    def load_state_dict(self, state_dict:dict) : 
-        for k, v in state_dict.items() :
-            self.__setattr__(k, v)
+        return x[..., self.bands, :, :]
 
 class KDEProjector(torch.nn.Module) :
 
     def __init__(
             self,
-            mus    :Iterable[int], 
-            sigmas :Iterable[int], 
+            mus    :Iterable[_float], 
+            sigmas :Iterable[_float], 
             nbands :int, 
             device :Union[torch.device, str]="cpu") -> None:
         super().__init__()
@@ -88,6 +101,33 @@ class KDEProjector(torch.nn.Module) :
 
     def forward(self, x:torch.Tensor) :
         return x.transpose(1,3).matmul(self.v).transpose(1,3)
+    
+    def state_dict(self) :
+        return self.__dict__
+    
+    def load_state_dict(self, state_dict:dict) : 
+        for k, v in state_dict.items() :
+            self.__setattr__(k, v)
+
+class PCAProjector(torch.nn.Module):
+    """Class implementing a PCA projection operator and its inversion
+    counterpart.
+    """
+    def __init__(self, mu:torch.Tensor, lambdas:torch.Tensor, ) -> None:
+        super().__init__()
+        self.mu = mu
+        self.lambdas = lambdas
+    
+    def forward(self, x:torch.Tensor) :
+        x = torch.matmul(
+            x.transpose(1,3).sub(self.mu), 
+            self.V)
+        return x.div(self.lambdas).transpose(1,3)
+    
+    def back_project(self, x:torch.Tensor) :
+        x = x.transpose(1,3).mul(self.lambdas)
+        x = torch.matmul(x, self.V.transpose(0,1))
+        return x.add(self.mu).transpose(1,3)
     
     def state_dict(self) :
         return self.__dict__
@@ -186,7 +226,7 @@ class PCA(torch.nn.Module) :
         x = torch.matmul(
             x.transpose(1,3).sub(self.mean), 
             self.V)
-        return x.div(self.S[:self.ncomp].sqrt() * self.q).transpose(1,3)
+        return x.div(self.S[:self.ncomp].sqrt() * self. n).transpose(1,3)
     
     def back_project(self, x:torch.Tensor) :
         x = x.transpose(1,3).mul(self.S[:self.ncomp].sqrt() * self.q)
