@@ -2,8 +2,12 @@ import itertools
 import random
 from typing import Iterable, Union
 
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 from torch.types import _float
+
+from utils.checks import assert_dim
 
 class StaticProjector(torch.nn.Module):
     """Base class containing basic methods for model saving and loading for
@@ -27,14 +31,15 @@ class RandomProjector(torch.nn.Module):
         """
         Args:
             in_channels (int): number of channels of images.
-            all_arrangements (bool, optional): whether to test every possible
-            arrangements in a deterministic order to avoid duplication. 
-            This feature is usefull in the case of testing.
-            If ``True``, the `generate()` method changes the projection channels
-            to the next arrangement.
-            If ``False``, the `generate()` method generates a new random
-            arrangement.
-            Defaults to ``False``.
+                all_arrangements (bool, optional): whether to test every
+                possible arrangements in a deterministic order to avoid
+                duplication. 
+                This feature is usefull in the case of testing.
+                If ``True``, :meth:`generate` changes the projection channels
+                to the next arrangement.
+                If ``False``, :meth:`generate` generates a new random
+                arrangement.
+                Defaults to ``False``.
         """
         super().__init__()
         self.in_channels = in_channels
@@ -45,8 +50,8 @@ class RandomProjector(torch.nn.Module):
         self.generate()
 
     def generate(self) :
-        """Generates a new arrangement, random if self.arrangements==True,
-        determinist if not.
+        """Generates a new arrangement, random if :attr:`arrangements` is
+        ``True``, determinist if not.
         """
         if self.in_channels!=1 :
             if self.in_channels!=3 :
@@ -82,17 +87,30 @@ class SampleProjector(StaticProjector) :
     def forward(self, x:torch.Tensor) :
         return x[..., self.bands, :, :]
 
-class KDEProjector(torch.nn.Module) :
-
+class KDEProjector(StaticProjector) :
+    """Gives an intermediate solution between :class:`SampleProjector` and
+    :class:`MeanProjector` : each channel of the projected output corresponds
+    to a ponderated sum of the original channels using a gaussian kernel.
+    """
     def __init__(
             self,
             mus    :Iterable[_float], 
             sigmas :Iterable[_float], 
-            nbands :int, 
             device :Union[torch.device, str]="cpu") -> None:
+        """
+        Args:
+            mus (Iterable[_float]): Means of the gaussian kernels.
+            sigmas (Iterable[_float]): standard deviations of the gaussian
+                kernels
+            device (Union[torch.device, str], optional): device to place
+                tensors on. 
+                Defaults to "cpu".
+        """
+        assert len(mus)==len(sigmas), "mus and sigmas arguments should have \
+the same length."
         super().__init__()
-        u = torch.tensor(
-            range(nbands), device=device).repeat(3,1).transpose(0,1)
+        u      = torch.tensor(
+            range(len(mus)), device=device).repeat(3,1).transpose(0,1)
         mus    = torch.tensor(mus, device=device)
         sigmas = torch.tensor(sigmas, device=device)
         
@@ -101,22 +119,23 @@ class KDEProjector(torch.nn.Module) :
 
     def forward(self, x:torch.Tensor) :
         return x.transpose(1,3).matmul(self.v).transpose(1,3)
-    
-    def state_dict(self) :
-        return self.__dict__
-    
-    def load_state_dict(self, state_dict:dict) : 
-        for k, v in state_dict.items() :
-            self.__setattr__(k, v)
 
-class PCAProjector(torch.nn.Module):
+class PCAProjector(StaticProjector):
     """Class implementing a PCA projection operator and its inversion
     counterpart.
     """
-    def __init__(self, mu:torch.Tensor, lambdas:torch.Tensor, ) -> None:
+    def __init__(self, mu:torch.Tensor, lambdas:torch.Tensor, V:torch.Tensor):
+        """
+        Args:
+            mu (torch.Tensor): Mean vector of the considered data.
+            lambdas (torch.Tensor): Eigenvalues of the covariance matrix
+                (ignoring a multiplication factor)
+            V (torch.Tensor): principal directions
+        """
         super().__init__()
         self.mu = mu
         self.lambdas = lambdas
+        self.V = V
     
     def forward(self, x:torch.Tensor) :
         x = torch.matmul(
@@ -128,38 +147,41 @@ class PCAProjector(torch.nn.Module):
         x = x.transpose(1,3).mul(self.lambdas)
         x = torch.matmul(x, self.V.transpose(0,1))
         return x.add(self.mu).transpose(1,3)
-    
-    def state_dict(self) :
-        return self.__dict__
-    
-    def load_state_dict(self, state_dict:dict) : 
-        for k, v in state_dict.items() :
-            self.__setattr__(k, v)
 
 class PCA(torch.nn.Module) :
-
-    def __init__(
-            self, 
-            data_options :DataOptions, 
-            nimg         :int, 
-            npixels      :int, 
-            ncomp        :int, 
-            device       :Union[torch.device, str] = "cpu") :
+    """Implements PCA trainig and plotting processes based on multispectral
+    images.
+    """
+    def __init__(self,  A:torch.Tensor, npixels:int, ncomp:int=3):
+        """
+        Args:
+            A (torch.Tensor): batch of images on which PCA needs to be 
+                performed.
+            npixels (int): Number of pixels to use to perfrom PCA.
+            ncomp (int, optional): Number of principal component to select.
+                Defaults to 3.
+        """
+        assert_dim(A, 4)
         super().__init__()
-        data_options.batch_size = nimg
-        try :
-            loader = DataTAE(data_options).get_loader("train")
-        except FileNotFoundError :
-            loader = DataTAE(data_options).get_loader()
-        A = next(iter(loader)).to(device)
-        B, _, H, W = A.shape
-        idx = random.sample(range(B * H * W), npixels)
-        self.A = A.transpose(1, 3).reshape(-1, data_options.nbands)[idx, :]
-        self.mean = self.A.mean(dim=0)
+        b, c, h, w = A.shape
+        idx = random.sample(range(b * h * w), npixels)
+        self.A = A.transpose(1, 3).reshape(-1, c)[idx, :]
+        self.mu = self.A.mean(dim=0)
         self.nsamples, self.nfeatures = self.A.shape
         self.ncomp = ncomp
 
+    @property
+    def principal_components(self):
+        return self.V[:, :self.ncomp]
+    
+    @property
+    def eigenvalues(self):
+        return self.S[:self.ncomp].sqrt() * self.norm_quantile
+
     def train_pca(self) :
+        """Trains PCA on the selected data.
+        Initializes 
+        """
         _, self.S, self.V = torch.pca_lowrank(
             self.A, q=self.nfeatures, center=True)
         self.S = self.S ** 2
@@ -167,11 +189,25 @@ class PCA(torch.nn.Module) :
         self.V = self.V[:, :self.ncomp]
 
     def normalize(self, q=0.99) :
-        self.q = torch.matmul(
-            self.A - self.mean, 
-            self.V).div(self.S[:3].sqrt()).abs().quantile(q)
+        """Finds a normalizing constant depending on the wanted quantile.
+
+        Args:
+            q (float, optional): Wanted quantile : by dividing by
+                :attr:norm_quantile, The proportion of the data contained in
+                the unit ball will be ``q``.
+                Defaults to 0.99.
+        """
+        self.norm_quantile = torch.matmul(
+            self.A - self.mu, 
+            self.V).div(self.S[:self.ncomp].sqrt()).abs().quantile(q)
     
     def plot(self, path:str) :
+        """Plots and save Variance percentages and eigenvectors/principal
+        components.
+
+        Args:
+            path (str): where to save the figure.
+        """
         fig = plt.figure(figsize=(20, 7),facecolor='w')
 
         # Eigen Values
@@ -198,11 +234,19 @@ class PCA(torch.nn.Module) :
         plt.savefig(path, bbox_inches='tight')
 
     def plot_histograms(self, path:str, nbins:int) :
-        B = torch.matmul(self.A - self.mean, self.V)
+        """Plots histograms of the norm of pixels for each different
+        normalization.
+
+        Args:
+            path (str): Where to save the figure
+            nbins (int): Number of bins for histograms.
+        """
+        B = torch.matmul(self.A - self.mu, self.V)
         C = B.div(self.S[:3].sqrt())
         D = B.div(self.S[:3])
 
-        self.quantiles = [data.abs().quantile(0.99) for data in [A, B, C, D]]
+        self.quantiles = [
+            data.abs().quantile(0.99) for data in [self.A, B, C, D]]
         print("0.99 quantiles :", self.quantiles)
 
         bins = np.linspace(-2, 2, nbins)
@@ -221,34 +265,28 @@ class PCA(torch.nn.Module) :
                     label=f"{label} {i+1}")
             ax.legend()
         plt.savefig(path)
-
-    def forward(self, x:torch.Tensor) :
-        x = torch.matmul(
-            x.transpose(1,3).sub(self.mean), 
-            self.V)
-        return x.div(self.S[:self.ncomp].sqrt() * self. n).transpose(1,3)
-    
-    def back_project(self, x:torch.Tensor) :
-        x = x.transpose(1,3).mul(self.S[:self.ncomp].sqrt() * self.q)
-        x = torch.matmul(x, self.V.transpose(0,1))
-        return x.add(self.mean).transpose(1,3)
-    
-    def state_dict(self) :
-        return self.__dict__
-    
-    def load_state_dict(self, state_dict:dict) : 
-        for k, v in state_dict.items() :
-            self.__setattr__(k, v)
-
     
 class ConvProjector(torch.nn.Module) :
-
+    """Embody a single or double layer CNN with or not non-linearities.
+    Allows to use linear projection when no non linearities are used.
+    """
     def __init__(
             self, 
             nlayers:int, 
             nc_in:int, 
             nc_out:int, 
             activation:bool=True) -> None:
+        """
+        Args:
+            nlayers (int): Number of layers of the CNN
+            nc_in (int): Number of input channels : number of spectral bands
+                of input data.
+            nc_out (int): Number of output channels : number of wanted
+                spectral bands in output.
+            activation (bool, optional): Whether to use non-linearities or not.
+                If ``True``, LeakyReLU is used.
+                Defaults to ``True``.
+        """
         super().__init__()
         match nlayers :
             case 1 :
