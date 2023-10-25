@@ -15,7 +15,8 @@ INSTALL_REQUIRES = [
     'numpy',
     'pillow',
     'click',
-    'rich'
+    'rich',
+    'PyYAML',
 ]
 
 setup(

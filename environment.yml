@@ -1,0 +1,17 @@
+name: toolbo
+channels:
+  - pytorch
+  - nvidia
+dependencies:
+  - python >= 3.8
+  - pip
+  - numpy
+  - pytorch
+  - torchvision
+  - pytorch-cuda=11.8
+  - tensorboard
+  - pillow
+  - PyYAML
+  - rich
+  - click
+  - packaging

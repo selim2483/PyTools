@@ -1,12 +1,13 @@
 """Streaming images and labels from datasets created with dataset_tool.py."""
 
 import argparse
+import json
 import os
 from typing import Union
-import numpy as np
 import zipfile
+
+import numpy as np
 import PIL.Image
-import json
 import torch
 from torchvision import transforms
 
