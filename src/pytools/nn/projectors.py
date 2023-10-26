@@ -1,13 +1,21 @@
 import itertools
+from math import ceil
 import random
 from typing import Iterable, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import torch.nn.functional as F
 from torch.types import _float
 
-from utils.checks import assert_dim
+from ..utils.checks import assert_dim, assert_shape
+from ..utils.misc import unsqueeze_squeeze
+
+__all__ = [
+    "RandomProjector", "SampleProjector", "KDEProjector", "PCAProjector",
+    "PCA", "ConvProjector"
+]
 
 class StaticProjector(torch.nn.Module):
     """Base class containing basic methods for model saving and loading for
@@ -71,6 +79,34 @@ class RandomProjector(torch.nn.Module):
 
     def forward(self, x:torch.Tensor) :
         return x[..., self.channels, :, :]
+    
+class MeanProjector(StaticProjector) :
+    """_summary_
+
+    Args:
+        StaticProjector (_type_): _description_
+    """
+    def __init__(self, nc_in:int, nc_out:int) :
+        super().__init__()
+        self.nc_in = nc_in
+        self.nc_out = nc_out
+        self.kernel_size = ceil(nc_in / nc_out)
+
+    @unsqueeze_squeeze
+    def forward(self, x:torch.Tensor) :
+        assert_shape(x, (None, self.nc_in, None, None))
+        if self.nc_in==1 :
+            y = x.repeat((1, 3, 1, 1))
+        else :
+            n, c, w, h = x.size()
+            x = x.reshape(n, c, h * w).permute(0, 2, 1)
+            pooled = F.avg_pool1d(
+                x,
+                kernel_size=self.kernel_size,
+                ceil_mode=True
+            )
+            assert_shape(pooled, (None, None, self.nc_out))
+            return pooled.permute(0, 2, 1).view(n, self.nc_out, w, h)
         
 class SampleProjector(StaticProjector) :
     """Projects multispectral images into into a chosen sub-color space.
@@ -267,8 +303,19 @@ class PCA(torch.nn.Module) :
         plt.savefig(path)
     
 class ConvProjector(torch.nn.Module) :
-    """Embody a single or double layer CNN with or not non-linearities.
+    __doc__ = """Embody a single or double layer CNN with or not
+    non-linearities.
     Allows to use linear projection when no non linearities are used.
+
+    Args:
+        nlayers (int): Number of layers of the CNN
+        nc_in (int): Number of input channels : number of spectral bands
+            of input data.
+        nc_out (int): Number of output channels : number of wanted
+            spectral bands in output.
+        activation (bool, optional): Whether to use non-linearities or not.
+            If ``True``, LeakyReLU is used.
+            Defaults to ``True``.
     """
     def __init__(
             self, 
@@ -276,17 +323,6 @@ class ConvProjector(torch.nn.Module) :
             nc_in:int, 
             nc_out:int, 
             activation:bool=True) -> None:
-        """
-        Args:
-            nlayers (int): Number of layers of the CNN
-            nc_in (int): Number of input channels : number of spectral bands
-                of input data.
-            nc_out (int): Number of output channels : number of wanted
-                spectral bands in output.
-            activation (bool, optional): Whether to use non-linearities or not.
-                If ``True``, LeakyReLU is used.
-                Defaults to ``True``.
-        """
         super().__init__()
         match nlayers :
             case 1 :

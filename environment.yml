@@ -1,4 +1,4 @@
-name: toolbo
+name: pytools
 channels:
   - pytorch
   - nvidia
@@ -15,3 +15,5 @@ dependencies:
   - rich
   - click
   - packaging
+  - sphinx
+  - matplotlib

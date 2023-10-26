@@ -1,9 +1,9 @@
 import pathlib
 from setuptools import setup, find_packages
 
-HERE = pathlib.Path(__file__).parent
+HERE = pathlib.Path(__file__).parent.parent
 VERSION = '0.1.0'
-PACKAGE_NAME =  'toolbox'
+PACKAGE_NAME =  'pytools'
 AUTHOR = 'Sélim Ollivier'
 AUTHOR_EMAIL = 'selim.ollivier@onera.fr'
 LICENSE = 'MIT license'

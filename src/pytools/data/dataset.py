@@ -11,7 +11,8 @@ import PIL.Image
 import torch
 from torchvision import transforms
 
-from ..utils.misc import augment, EasyDict
+from ..utils.misc import EasyDict
+from .augmentations import augment
 
 __all__ = ["Dataset", "ImageFolderDataset"]
 

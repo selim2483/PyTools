@@ -1,6 +1,9 @@
+from functools import wraps
 import re
 import sys
-from typing import Optional, Tuple
+from typing import Any, Callable, Optional, Tuple
+
+import torch
 
 
 def error(msg: str):
@@ -23,3 +26,29 @@ def maybe_min(a: int, b: Optional[int]) -> int:
     if b is not None:
         return min(a, b)
     return a
+
+class EasyDict(dict):
+    """Convenience class that behaves like a dict but allows access with the 
+    attribute syntax."""
+
+    def __getattr__(self, name: str) -> Any:
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        self[name] = value
+
+    def __delattr__(self, name: str) -> None:
+        del self[name]
+
+def unsqueeze_squeeze(func:Callable[..., torch.Tensor]):
+    @wraps(func)
+    def wrapper(x:torch.Tensor, *args, **kwargs):
+        if x.ndim==3:
+            return func(x.unsqueeze(0), *args, **kwargs).squeeze(0)
+        elif x.ndim==4:
+            return func(x, *args, **kwargs)
+        
+    return wrapper

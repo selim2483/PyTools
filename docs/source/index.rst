@@ -3,21 +3,28 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to toolbox's documentation!
+PyTools documentation
 ===================================
 
 **PyTools** is a Python library providing useful tools forComputer Vision projects using PyTorch. 
 
-Check out the :doc:`usage` section for further information, including how to
-:ref:`install <installation>` the project.
+Check out the **Usage** section for further information, including how to
+:doc:`install <install>` the project.
 
 .. note::
 
    This project is under active development.
 
-Contents
-========
+.. toctree::
+   :glob:
+   :caption: Usage
+   :maxdepth: 1
+   
+   install
 
 .. toctree::
-
-   usage
+   :glob:
+   :caption: Python API
+   :maxdepth: 2
+   
+   nn
