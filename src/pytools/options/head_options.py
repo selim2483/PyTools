@@ -1,11 +1,12 @@
 import os
 from typing import Union
 
+import torch
 import yaml
 
-from .options import Options
+from .options import Options, DataOptions, LoggingOptions, TrainingOptions
 
-__all__ = ["HeadOptions"]
+__all__ = ["HeadOptions", "CoachOptions"]
 
 class HeadOptions :
 
@@ -53,3 +54,15 @@ class HeadOptions :
     
     def get_general_options_from_config(self) :
         raise NotImplementedError
+    
+class CoachOptions(HeadOptions) :
+ 
+    def get_model_options_from_checkpoint(self):
+        self.checkpoint_dict:dict = torch.load(self.checkpoint_path)
+    
+    def get_general_options_from_config(self) :
+        self.data_options           = DataOptions(**self._cfg.get("data")) 
+        self.logging_options        = LoggingOptions(
+            **self._cfg.get("logging")) 
+        self.training_options       = TrainingOptions(
+            **self._cfg.get("training")) 

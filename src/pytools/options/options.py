@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field, is_dataclass
+from dataclasses import dataclass
 
 __all__ = [
     "Options", "DataOptions", "LoggingOptions", "OptimizerOptions", 
@@ -11,7 +11,9 @@ class Options :
     relative to a unique subdomain (e.g. losses, data, optimizers). 
     This class behaves like a dict but enables the use of code completion via
     Pylance, comparison operations. Default values can also be provided.
-    Only __repr__ is customized from basic dataclasses.
+    2 methods are added on top of a basic dataclasses :
+        - A custom __repr__ method.
+        - A classmethod allowing one to construct the 
     """
 
     def __repr__(self) :
@@ -36,6 +38,21 @@ class Options :
             _repr += f"\t{spaced_key} = {value},\n"
         _repr = _repr[:-2] + ")"
         return _repr
+    
+    @classmethod
+    def from_attribute_dict(cls, attr_dict:dict):
+        new_attr_dict = {}
+        for key in cls.__annotations__:
+            if key in attr_dict :
+                new_attr_dict[key] = attr_dict[key]
+            elif key in cls.__dict__:
+                new_attr_dict[key] = cls.__dict__[key]
+            else:
+                raise KeyError(f"Provided 'attr_dict' argument should have a \
+    '{key}' as the {cls.__class__.__name__} dataclass does not provide \
+    default value")
+        return cls(**new_attr_dict)
+    
 
 @dataclass(repr=False)
 class DataOptions(Options) :
@@ -45,6 +62,7 @@ class DataOptions(Options) :
     use_labels  :bool = False
     random_seed :int  = 0
     augment     :bool = True
+    nchannels    :int  = 3
         
 @dataclass(repr=False)
 class LoggingOptions(Options) :
@@ -61,30 +79,11 @@ class LoggingOptions(Options) :
 @dataclass(repr=False)
 class OptimizerOptions(Options) :
     lr              :float = 0.001
-    lr_factor_map   :float = 0.01
     beta1           :float = 0.0
     beta2           :float = 0.99
     from_checkpoint :bool  = False
-
-    @property
-    def lr_map(self):
-        return self.lr * self.lr_factor_map
         
 @dataclass(repr=False)
 class TrainingOptions(Options) :
     max_steps           :str  = "max_steps"
     max_kimg            :str  = "max_kimg"
-    starting_resolution :int  = 8
-    batch_sizes         :dict = field(default_factory={
-        4: 128, 
-        8: 128, 
-        16: 128, 
-        32: 128, 
-        64: 64, 
-        128: 32, 
-        256: 16, 
-        512: 8, 
-        1024: 4
-    })
-    prog_fadin_kimg     :int = 600
-    prog_stab_kimg      :int = 600
