@@ -1,3 +1,6 @@
+.. role:: hidden
+    :class: hidden-section
+
 pytools.data
 ============
 .. automodule:: pytools.data

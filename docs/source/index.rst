@@ -27,5 +27,9 @@ Check out the **Usage** section for further information, including how to
    :caption: Python API
    :maxdepth: 2
    
-   nn
    data
+   logging
+   nn
+   options
+   training
+   utils

@@ -1,12 +1,12 @@
 ﻿.. role:: hidden
     :class: hidden-section
-.. currentmodule:: pytools.data.periodic_smooth_decomposition
+.. currentmodule:: pytools.utils.path
 
 
-periodic_smooth_decomposition
-=============================
+is_image_ext
+============
 
-.. autoclass:: periodic_smooth_decomposition
+.. autoclass:: is_image_ext
     :members:
 
 

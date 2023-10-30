@@ -1,12 +1,12 @@
 ﻿.. role:: hidden
     :class: hidden-section
-.. currentmodule:: pytools.data.mask_crop
+.. currentmodule:: pytools.utils
 
 
-get_mask_crop
-=============
+parse_tuple
+===========
 
-.. autoclass:: get_mask_crop
+.. autoclass:: parse_tuple
     :members:
 
 

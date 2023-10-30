@@ -1,12 +1,12 @@
 ﻿.. role:: hidden
     :class: hidden-section
-.. currentmodule:: pytools
+.. currentmodule:: pytools.logging
 
 
-data
-====
+profiled_function
+=================
 
-.. autoclass:: data
+.. autoclass:: profiled_function
     :members:
 
 

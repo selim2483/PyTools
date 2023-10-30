@@ -8,6 +8,7 @@ __all__ = [
 
 class Options :
     """Options base class. 
+    
     Options object are meant to be dataclasses that carry every options
     relative to a unique subdomain (e.g. losses, data, optimizers). 
     This class behaves like a dict but enables the use of code completion via

@@ -13,10 +13,10 @@ def convert_corner(x:int, y:int, width:int, height:int, new_corner="ul") :
         height (int): 
         new_corner (str): new wanted corner. 
             Must be :
-                - 'ul' : upper left, 
-                - 'ur' : upper right, 
-                - 'bl' : bottom left,
-                - 'br' : bottom right.
+                - ``ul`` : upper left, 
+                - ``ur`` : upper right, 
+                - ``bl`` : bottom left,
+                - ``br`` : bottom right.
             default to 'ul'.
     """
     if new_corner[0]=='ul' :
