@@ -1,4 +1,5 @@
 from functools import wraps
+from typing import Iterable
 
 import torch
 
@@ -9,7 +10,7 @@ def num_parameters(model:torch.nn.Module) :
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 @type_check
-def concatenate_loss_dict(agg_loss_dict:dict, list_output:bool=False) :
+def concatenate_loss_dict(agg_loss_dict:Iterable[dict], list_output:bool=False) :
     vals = {}
     for output in agg_loss_dict:
         for key in output:
@@ -20,7 +21,7 @@ def concatenate_loss_dict(agg_loss_dict:dict, list_output:bool=False) :
     return vals
 
 @type_check
-def aggregate_loss_dict(agg_loss_dict:dict, list_output:bool=False) :
+def aggregate_loss_dict(agg_loss_dict:Iterable[dict], list_output:bool=False) :
     mean_vals = concatenate_loss_dict(agg_loss_dict, list_output=list_output)
     for key in mean_vals:
         if len(mean_vals[key]) > 0:

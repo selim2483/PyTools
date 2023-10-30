@@ -16,7 +16,8 @@ class LoggingDir :
 
     def mkdirs(self, job_name:str) :
         
-        toplogdir = generate_unique_path(self.top_logdir, job_name)
+        toplogdir = generate_unique_path(
+            os.path.join(self.top_logdir, job_name))
         logdir = os.path.join(toplogdir, "logs")
         figdir = os.path.join(toplogdir, "images")
         chkdir = os.path.join(toplogdir, "models")

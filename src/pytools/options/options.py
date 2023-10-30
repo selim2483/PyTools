@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Union
 
 __all__ = [
     "Options", "DataOptions", "LoggingOptions", "OptimizerOptions", 
@@ -57,12 +58,12 @@ class Options :
 @dataclass(repr=False)
 class DataOptions(Options) :
     path        :str
-    max_size    :int
-    resolution  :int  = 256
-    use_labels  :bool = False
-    random_seed :int  = 0
-    augment     :bool = True
-    nchannels    :int  = 3
+    max_size    :Union[int, None] = None
+    resolution  :int              = 256
+    use_labels  :bool             = False
+    random_seed :int              = 0
+    augment     :bool             = True
+    nchannels    :int             = 3
         
 @dataclass(repr=False)
 class LoggingOptions(Options) :
@@ -85,5 +86,5 @@ class OptimizerOptions(Options) :
         
 @dataclass(repr=False)
 class TrainingOptions(Options) :
-    max_steps           :str  = "max_steps"
-    max_kimg            :str  = "max_kimg"
+    max_steps :Union[int, None] = None
+    max_kimg  :Union[int, None] = None

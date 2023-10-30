@@ -15,16 +15,23 @@ def is_image_ext(fname: Union[str, Path]) -> bool:
     ext = file_ext(fname).lower()
     return f'.{ext}' in PIL.Image.EXTENSION # type: ignore
 
-def generate_unique_name(root:str, name:str, ext:str) :
+def generate_unique_name(root:str, name:str, ext:Union[str, None]):
+    if ext is None:
+        ext=""
+    else:
+        ext = "." + ext
     i = 0
     while(True):
-        unique_name = name + f"_{i:03}"
-        if not os.path.exists(os.path.join(root, unique_name + "." + ext)) :
+        unique_name = name + f"_{i:03}" + ext
+        if not os.path.exists(os.path.join(root, unique_name)):
             return unique_name
         i += 1
 
 def generate_unique_path(path:str) :
     root, tail = os.path.split(path)
-    name, ext = tail.split(".")
+    try :
+        name, ext = tail.split(".")
+    except ValueError:
+        name, ext = tail.split(".")[0], None
     return os.path.join(
-        root, generate_unique_name(root, name, ext) + "." + ext)
+        root, generate_unique_name(root, name, ext))
