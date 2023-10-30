@@ -6,8 +6,8 @@ __all__ = ["periodic_smooth_decomposition"]
 
 def periodic_smooth_decomposition(
         u:torch.Tensor, inverse_dft:bool=True) -> Tuple[torch.Tensor]:
-    """Computes periodic + smooth decomposition from L. Moisan's paper
-    (https://link.springer.com/article/10.1007/s10851-010-0227-1) : when
+    """Computes periodic + smooth decomposition from Moisan's paper
+    (https://link.springer.com/article/10.1007/s10851-010-0227-1). When
     computing discrete Fourier transform, signals are assumed to be periodic.
     The periodic extension of the image then presents strong discontinuities
     since there are no reason for borders to be alike. This results in the

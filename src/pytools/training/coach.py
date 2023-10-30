@@ -168,16 +168,15 @@ class Coach(CoachOptions) :
         raise NotImplementedError
     
     def train(self) :
-        print(self.training_options)
         self.console.log(
             f"[green]Started training {self.model_name}[/green]")
+        print(self.training_options)
+        print("")
 
         progress = Progress(
             *Progress.get_default_columns(), MofNCompleteColumn())
 
         with progress as self.progress :
-            print(self.training_options.max_kimg, type(self.training_options.max_kimg))
-            print(self.max_steps, type(self.max_steps))
             self.task_kimg = self.progress.add_task(
                 "kimg", total=self.training_options.max_kimg)
             self.task_steps = self.progress.add_task(

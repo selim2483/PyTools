@@ -9,6 +9,8 @@ from torch.types import _int
 __all__ = ["type_check"]
 
 def check_arg(_name:str, _value:Any, _type:type) :
+    if hasattr(_type, "__origin__"):
+        return check_arg(_name, _value, _type.__origin__)
     if not isinstance(_value, _type) :
         raise TypeError(f"Argument '{_name}' must be of type '{_type.__name__}', \
 not '{type(_value).__name__}'")
