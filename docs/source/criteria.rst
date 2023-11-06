@@ -60,3 +60,6 @@ Gram Matrices
 Self Supervided Learning
 ------------------------
 
+GAN
+---
+
