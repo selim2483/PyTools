@@ -43,12 +43,20 @@ class EasyDict(dict):
     def __delattr__(self, name: str) -> None:
         del self[name]
 
-def unsqueeze_squeeze(func:Callable[..., torch.Tensor]):
-    @wraps(func)
-    def wrapper(x:torch.Tensor, *args, **kwargs):
-        if x.ndim==3:
-            return func(x.unsqueeze(0), *args, **kwargs).squeeze(0)
-        elif x.ndim==4:
-            return func(x, *args, **kwargs)
-        
-    return wrapper
+def unsqueeze_squeeze(ndim:int=4, ntensors:int=1):
+    def decorator(func:Callable[..., torch.Tensor]):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            for i, x in enumerate(args[:ntensors]):
+                assert isinstance(x, torch.Tensor), "Input in position {i} \
+should be a tensor"
+                if x.ndim == ndim - 1:
+                    return func(x.unsqueeze(0), *args, **kwargs).squeeze(0)
+                elif x.ndim == ndim:
+                    return func(x, *args, **kwargs)
+                else:
+                    raise ValueError(f"Input tensor in position {i} should \
+have {ndim} dimension, given has {x.ndim}")
+            
+        return wrapper
+    return decorator

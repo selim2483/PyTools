@@ -27,6 +27,7 @@ Check out the **Usage** section for further information, including how to
    :caption: Python API
    :maxdepth: 2
    
+   criteria
    data
    logging
    nn

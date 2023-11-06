@@ -70,3 +70,16 @@ def is_image_ext(fname: Union[str, Path]) -> bool:
     """
     ext = file_ext(fname).lower()
     return f'.{ext}' in PIL.Image.EXTENSION # type: ignore
+	
+def rename_remove(root:str, newroot:str, name:str) :
+    """Remove and rename a file
+
+    Args:
+        root (str): original root
+        newroot (str): new root
+        name (str): file name
+    """
+    path = os.path.join(root, name)
+    newpath = os.path.join(newroot, os.path.split(name)[-1])
+
+    os.rename(path, newpath)
