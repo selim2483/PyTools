@@ -6,7 +6,7 @@ from ..utils.checks import type_check
 
 
 @type_check
-def reduce_loss(loss:torch.Tensor, reduction='mean') :
+def reduce_loss(loss:torch.Tensor, reduction:str='mean') -> torch.Tensor:
     """Perform reducing operation over the computed loss.
 
     Args:
@@ -44,7 +44,7 @@ class Loss(nn.Module):
         self.device = device
         self.reduction = reduction
     
-    def loss_fn(self, *args, **kwargs):
+    def loss_fn(self, *args, **kwargs) -> torch.Tensor:
         """Loss function to use.
         Should be overrided in child class.
 
@@ -53,6 +53,6 @@ class Loss(nn.Module):
         """
         raise NotImplementedError
     
-    def forward(self, *args, **kwargs):
+    def forward(self, *args, **kwargs) -> torch.Tensor:
         return reduce_loss(
             self.loss_fn(*args, **kwargs), reduction=self.reduction)

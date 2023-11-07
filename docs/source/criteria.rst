@@ -38,6 +38,7 @@ Tools used to wrap univariate distances into multivariate sliced distances.
     criteria.SliceLoss
     criteria.band_slice
     criteria.stochastic_slice
+    criteria.sliced_function
 
 Histogram Loss
 ^^^^^^^^^^^^^^
@@ -54,8 +55,26 @@ Histogram Loss
 Spectral Losses
 ^^^^^^^^^^^^^^^
 
+.. autosummary::
+    :toctree: generated
+    :nosignatures:
+    :template: classtemplate.rst
+
+    criteria.SpectralOrthoLoss
+    criteria.spectrum_ortho_loss1D
+    criteria.sliced_spectrum_ortho_loss
+
 Gram Matrices
 ^^^^^^^^^^^^^
+
+.. autosummary::
+    :toctree: generated
+    :nosignatures:
+    :template: classtemplate.rst
+
+    criteria.gram_loss_mse
+    criteria.gram_loss_mse_layer
+    criteria.GramLoss
 
 Self Supervided Learning
 ------------------------

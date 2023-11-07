@@ -1,16 +1,25 @@
 from functools import wraps
-from typing import Callable, Union
+from typing import Union, Protocol, runtime_checkable
 
 import torch
-from torch import nn
 
 from ..utils.misc import unsqueeze_squeeze
 from ..utils.checks import assert_shape, type_check
 from .loss import Loss, reduce_loss
 
+
+@runtime_checkable
+class TensorCallable(Protocol):
+    def __call__(
+            self, 
+            x:torch.Tensor, y:torch.Tensor, 
+            *args, **kwargs
+    ) -> torch.Tensor:
+        ...
+
 @type_check
 def stochastic_slice(
-    fn     :Callable[[torch.Tensor, torch.Tensor], torch.Tensor], 
+    fn     :TensorCallable, 
     nslice :int, 
     device :Union[torch.device, str]="cpu"
 ):
@@ -19,19 +28,20 @@ def stochastic_slice(
     sliced distance.
 
     Args:
-        fn (Callable[..., torch.Tensor]): Univariate function
+        fn (Callable[[torch.Tensor, torch.Tensor, ...], torch.Tensor]): 
+            Univariate function
         nslice (int): Number of random slice to perform.
         device (Union[torch.device, str], optional): device on which to place
             the tensors. 
             Defaults to "cpu".
 
     Returns:
-        Callable[[torch.Tensor, torch.Tensor], torch.Tensor]: randomly sliced
-        distance function
+        Callable[[torch.Tensor, torch.Tensor, ...], torch.Tensor]: randomly
+        sliced distance function
     """
     @wraps(fn)
     @unsqueeze_squeeze
-    def sliced_fn(x:torch.Tensor, y:torch.Tensor):
+    def sliced_fn(x:torch.Tensor, y:torch.Tensor, *args, **kwargs):
         assert_shape(y, x.shape)
         b, c, _, _ = x.shape
         res = torch.zeros(b).to(device)
@@ -42,6 +52,7 @@ def stochastic_slice(
             res += fn(
                 torch.matmul(x.reshape(b, c, -1).transpose(1, 2), v), 
                 torch.matmul(y.reshape(b, c, -1).transpose(1, 2), v),
+                *args, **kwargs
             )
 
         return res
@@ -50,7 +61,7 @@ def stochastic_slice(
 
 @type_check
 def band_slice(
-    fn     :Callable[[torch.Tensor, torch.Tensor], torch.Tensor], 
+    fn     :TensorCallable, 
     band   :int, 
     device :Union[torch.device, str]="cpu"
 ):
@@ -59,14 +70,15 @@ def band_slice(
     distance between two multivariate tensors on a chosen band.
 
     Args:
-        fn (Callable[..., torch.Tensor]): Univariate function
+        fn (Callable[[torch.Tensor, torch.Tensor, ...], torch.Tensor]):
+            Univariate function
         band (int): band index on which to compute the distance.
         device (Union[torch.device, str], optional): device on which to place
             the tensors. 
             Defaults to "cpu".
 
     Returns:
-        Callable[[torch.Tensor, torch.Tensor], torch.Tensor]: band sliced
+        Callable[[torch.Tensor, torch.Tensor, ...], torch.Tensor]: band sliced
         distance function
     """
     @wraps(fn)
@@ -87,6 +99,20 @@ def band_slice(
     
     return sliced_fn
 
+def sliced_function(
+    fn     :TensorCallable, 
+    nslice :Union[int, None]         = None, 
+    band   :Union[int, None]         = None,
+    device :Union[torch.device, str] = "cpu"
+):
+    if isinstance(nslice, int):
+        return stochastic_slice(fn, nslice=nslice, device=device)
+    elif isinstance(band, int):
+        return band_slice(fn, band=band, device=device)
+    else:
+        raise ValueError(
+            "Either nslice or band arguments should take an int value") 
+
 class SliceLoss(Loss):
     """Basic sliced loss module. 
     Given a loss function that computes a distance between two univariate
@@ -102,8 +128,8 @@ class SliceLoss(Loss):
             Defaults to "cpu".
     """
     def forward(
-            self, x:torch.Tensor, y:torch.Tensor, 
-            nslice:Union[int, None]=None, band:Union[int, None]=None,
+            self, x:torch.Tensor, y:torch.Tensor, *args,
+            nslice:Union[int, None]=None, band:Union[int, None]=None, **kwargs
         ):
         """Computes either random sliced distance on tensors (if nslice is
         int) or distance over a chosen band (if nslice is not int and band is
@@ -124,13 +150,13 @@ class SliceLoss(Loss):
         Returns:
             torch.Tensor: Wanted distance.
         """
-        if isinstance(nslice, int):
-            fn = stochastic_slice(
-                self.loss_fn, nslice=nslice, device=self.device)
-        elif isinstance(band, int):
-            fn = band_slice(self.loss_fn, band=band, device=self.device)
+        fn = sliced_function(
+            self.loss_fn, nslice=nslice, band=band, device=self.device)
 
-        return reduce_loss(fn(x, y), reduction=self.reduction)
+        return reduce_loss(
+            fn(x, y, *args, **kwargs), 
+            reduction=self.reduction
+        )
 
         
 
