@@ -38,6 +38,23 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.viewcode',
 ]
+mathjax_path = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"
+# mathjax_config = {
+#     'TeX': {
+#         'extensions': ['AMSmath.js', 'AMSsymbols.js'],
+#     },
+#     'HTML-CSS': {
+#         'availableFonts': ["TeX"],
+#         'linebreaks': {
+#             'automatic': True,
+#         },
+#         'styles': {
+#             'display': "block",
+#             'elementId': "math",
+#         },
+#     },
+# }
+# imgmath_latex_preamble = r'\usepackage{amsmath}'
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

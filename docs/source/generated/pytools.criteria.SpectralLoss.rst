@@ -1,12 +1,12 @@
 ﻿.. role:: hidden
     :class: hidden-section
-.. currentmodule:: pytools.criteria.gram
+.. currentmodule:: pytools.criteria
 
 
-LAYERS_WEIGHTS
-==============
+SpectralLoss
+============
 
-.. autoclass:: LAYERS_WEIGHTS
+.. autoclass:: SpectralLoss
     :members:
 
 

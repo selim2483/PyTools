@@ -1,6 +1,6 @@
-﻿pytools.criteria.gram\_loss\_mse
+﻿pytools.criteria.radial\_profile
 ================================
 
 .. currentmodule:: pytools.criteria
 
-.. autofunction:: gram_loss_mse
+.. autofunction:: radial_profile

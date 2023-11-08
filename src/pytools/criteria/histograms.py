@@ -38,10 +38,11 @@ def sliced_histogram_loss(
         device:Union[torch.device, str]="cpu"
 ) -> torch.Tensor:
     """Computes sliced histogram distance between two images :
-        - Projects images in a random direction in the color space (if nslice
-        is int), or on a chosen band (if nslice is not int and band is int).
-        - Then, computes the Lp distance between sorted histograms of the two
-        images.
+
+    - Projects images in a random direction in the color space (if nslice is
+      int), or on a chosen band (if nslice is not int and band is int).
+    - Then, computes the Lp distance between sorted histograms of the two
+      images.
 
     Args:
         x (torch.Tensor): first image
@@ -68,6 +69,7 @@ def sliced_histogram_loss(
 
 class HistogramLoss(SliceLoss):
     """Histogram Loss module.
+
     Computes sliced histogram distance between two images :
         - Projects images in a random direction in the color space.
         - Then, computes the Lp distance between sorted histograms of the two

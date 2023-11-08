@@ -115,6 +115,7 @@ def sliced_function(
 
 class SliceLoss(Loss):
     """Basic sliced loss module. 
+    
     Given a loss function that computes a distance between two univariate
     tensors, the module allows to compute the corresponding randomly sliced
     distance or the distance over a selected band.

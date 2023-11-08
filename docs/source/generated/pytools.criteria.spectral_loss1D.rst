@@ -1,6 +1,6 @@
-﻿pytools.criteria.sliced\_function
+﻿pytools.criteria.spectral\_loss1D
 =================================
 
 .. currentmodule:: pytools.criteria
 
-.. autofunction:: sliced_function
+.. autofunction:: spectral_loss1D

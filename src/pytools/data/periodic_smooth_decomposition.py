@@ -1,9 +1,11 @@
 from typing import Tuple
 import torch
 
+from ..utils.misc import unsqueeze_squeeze
+
 __all__ = ["periodic_smooth_decomposition"]
 
-
+@unsqueeze_squeeze
 def periodic_smooth_decomposition(
         u:torch.Tensor, inverse_dft:bool=True) -> Tuple[torch.Tensor]:
     """Computes periodic + smooth decomposition from Moisan's paper

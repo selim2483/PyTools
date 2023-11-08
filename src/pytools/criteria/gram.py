@@ -26,8 +26,8 @@ def gram_loss_mse_layer(
             compute Gram matrices or not. 
             Defaults to True.
         reduction (str, optional): reduction to use for MSE computation. 
-            If `'none'` : no reduction will be applied 
-                ((B) size tensor will be returned).
+            If `'none'` : no reduction will be applied ((B) size tensor will
+            be returned).
             If `'mean'` : mean loss will be returned.
             If `'sum'` : sumed loss will be returned.
             Defaults to `'mean'`.
@@ -64,8 +64,8 @@ def gram_loss_mse(
             compute Gram matrices or not. 
             Defaults to True.
         reduction (str, optional): reduction to use for MSE computation. 
-            If `'none'` : no reduction will be applied 
-                ((B) size tensor will be returned).
+            If `'none'` : no reduction will be applied ((B) size tensor will
+            be returned).
             If `'mean'` : mean loss will be returned.
             If `'sum'` : sumed loss will be returned.
             Defaults to `'mean'`.
@@ -98,6 +98,7 @@ iterable, got {type(weights)}.")
 
 class GramLoss(nn.Module):
     """Style Loss module.
+
     Computes L2 distances between Gram matrices extracted from provided
     feature maps as described by Gatys et al.: Each layer of the extractor net
     provides feature maps for both original and reconstructed images. These
@@ -111,12 +112,14 @@ class GramLoss(nn.Module):
         center_gram (bool, optional): Whether to center feature maps to
             compute Gram matrices or not. 
             Defaults to True.
-        reduction (str, optional): reduction to use for MSE computation. 
-            If `'none'` : no reduction will be applied 
-                ((B) size tensor will be returned).
-            If `'mean'` : mean loss will be returned.
-            If `'sum'` : sumed loss will be returned.
+        reduction (str, optional): reduction to use for MSE computation.
+        
+            - If `'none'` : no reduction will be applied.
+            - If `'mean'` : mean loss will be returned.
+            - If `'sum'` : sumed loss will be returned.
+
             Defaults to `'mean'`.
+
     """
     def __init__(
             self, 
