@@ -1,5 +1,5 @@
-from dataclasses import dataclass
-from typing import Union
+from dataclasses import dataclass, field
+from typing import Optional, Union
 
 __all__ = [
     "Options", "DataOptions", "LoggingOptions", "OptimizerOptions", 
@@ -79,6 +79,20 @@ class LoggingOptions(Options) :
     nimg                  :str  = "nimg"
 
 @dataclass(repr=False)
+class LoggingInferenceOptions(Options):
+    default_logdir  :str
+    logdir          :Optional[str]  = None
+
+    def __post_init__(self):
+        if self.logdir is None:
+            self.logdir = self.default_logdir
+
+@dataclass(repr=False)
+class MetricsOptions(Options):
+    compute :Optional[bool] = True
+    seed    :Optional[int] = 0
+
+@dataclass(repr=False)
 class OptimizerOptions(Options) :
     lr              :float = 0.001
     beta1           :float = 0.0
@@ -89,3 +103,7 @@ class OptimizerOptions(Options) :
 class TrainingOptions(Options) :
     max_steps :Union[int, None] = None
     max_kimg  :Union[int, None] = None
+
+if __name__=="__main__":
+    c = LoggingInferenceOptions(default_logdir="a")
+    print(c)

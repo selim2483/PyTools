@@ -4,7 +4,10 @@ from typing import Union
 import torch
 import yaml
 
-from .options import Options, DataOptions, LoggingOptions, TrainingOptions
+from .options import (
+    Options, DataOptions, LoggingOptions, LoggingInferenceOptions, 
+    MetricsOptions, TrainingOptions
+)
 
 __all__ = ["HeadOptions", "CoachOptions"]
 
@@ -66,3 +69,21 @@ class CoachOptions(HeadOptions) :
             **self._cfg.get("logging")) 
         self.training_options       = TrainingOptions(
             **self._cfg.get("training")) 
+        
+class InferenceOptions(HeadOptions) :
+    
+    def get_options(self):
+        self.get_infos_from_checkpoint()
+        self.get_general_options_from_config()
+
+    def get_general_options_from_config(self):
+        self.data_options    = DataOptions(**self.cfg.get("data")) 
+        self.metric_options  = MetricsOptions(self.cfg.get("metrics"))
+        default_logdir=os.path.dirname(os.path.dirname(self.checkpoint_path))
+        self.logging_options = LoggingInferenceOptions(
+            **self.cfg.get("logging"), default_logdir=default_logdir)
+    
+    def get_infos_from_checkpoint(self) :
+        assert (self.checkpoint_path is not None,\
+"Checkpoint path is required, using 'CHECKPOINT' key")
+        self.checkpoint_dict:dict = torch.load(self.checkpoint_path)
