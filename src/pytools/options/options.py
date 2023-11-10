@@ -81,7 +81,11 @@ class LoggingOptions(Options) :
 @dataclass(repr=False)
 class LoggingInferenceOptions(Options):
     default_logdir  :str
+    groups          :dict
+    infos           :dict
     logdir          :Optional[str]  = None
+    bar_graphs      :Optional[bool] = True
+    line_graphs     :Optional[bool] = False
 
     def __post_init__(self):
         if self.logdir is None:

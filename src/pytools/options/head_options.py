@@ -25,7 +25,6 @@ class HeadOptions :
         else :
             raise ValueError("config should be either a path, a dict or None")
         
-        self.checkpoint_path = self._cfg.get("checkpoint")
         self.get_options()
 
     @property
@@ -42,6 +41,7 @@ class HeadOptions :
             yaml.dump(self.cfg, ymlfile)
 
     def get_options(self) :
+        self.checkpoint_path = self._cfg.get("checkpoint")
         if self.checkpoint_path is not None :
             self.get_model_options_from_checkpoint()
         else :
@@ -73,17 +73,34 @@ class CoachOptions(HeadOptions) :
 class InferenceOptions(HeadOptions) :
     
     def get_options(self):
-        self.get_infos_from_checkpoint()
+        checkpoint_paths = self._cfg.get("checkpoint")
+        if isinstance(checkpoint_paths, str):
+            self.checkpoint_path = checkpoint_paths
+            self.default_logdir = os.path.dirname(
+                os.path.dirname(self.checkpoint_path))
+            self.get_infos_from_checkpoint()
+        elif isinstance(checkpoint_paths, dict):
+            self.checkpoint_paths = iter(checkpoint_paths.items())
+        else:
+            raise ValueError("'checkpoint' value(s) should be provided.")
+        
         self.get_general_options_from_config()
 
     def get_general_options_from_config(self):
         self.data_options    = DataOptions(**self.cfg.get("data")) 
-        self.metric_options  = MetricsOptions(self.cfg.get("metrics"))
-        default_logdir=os.path.dirname(os.path.dirname(self.checkpoint_path))
+        self.metric_options  = MetricsOptions(**self.cfg.get("metrics"))
         self.logging_options = LoggingInferenceOptions(
-            **self.cfg.get("logging"), default_logdir=default_logdir)
-    
+            **self.cfg.get("logging"), 
+            default_logdir=getattr(self, "default_logdir", default=None)
+        )
+        
     def get_infos_from_checkpoint(self) :
         assert (self.checkpoint_path is not None,\
 "Checkpoint path is required, using 'CHECKPOINT' key")
         self.checkpoint_dict:dict = torch.load(self.checkpoint_path)
+
+    def next_model(self) :
+        self.name, self.checkpoint_path = next(self.checkpoint_paths)
+        self.get_infos_from_checkpoint()
+
+        return self.name

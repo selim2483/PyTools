@@ -1,12 +1,13 @@
 import os
-from typing import Any, Union
+from typing import Any, Iterable, Union
 
 from rich.console import Console
 from rich.progress import Progress, MofNCompleteColumn
 import torch
-from torch.utils.data.dataloader import _SingleProcessDataLoaderIter
+from torch.utils.data import DataLoader
 
-from ..logging.misc import console_print, mean_loss_dict, std_loss_dict
+from .utils import LoggingTools
+from ..logging.misc import concatenate_loss_dict, console_print, mean_loss_dict, std_loss_dict
 from ..options.head_options import InferenceOptions
 from ..utils.misc import get_device
 
@@ -21,17 +22,17 @@ class Inference(InferenceOptions):
     """
 
     model :Any
-    loader :_SingleProcessDataLoaderIter
+    loader :DataLoader
 
-    def __init__(self, options:Union[str, dict], init_model:bool=True):
-        super().__init__()
+    def __init__(self, options:Union[str, dict]):
+        super().__init__(options)
         self.device = get_device()
         self.console = Console()
         
         self._initialize_logger()
         self._initialize_dataset()
         self._initialize_metrics()
-        if init_model:
+        if hasattr(self, "checkpoint_path"):
             self._initialize_model()
 
     @property
@@ -40,7 +41,7 @@ class Inference(InferenceOptions):
     
     @property
     def _log_images(self):
-        raise True
+        return True
     
     def _initialize_dataset(self):
         raise NotImplementedError
@@ -58,13 +59,6 @@ class Inference(InferenceOptions):
             os.makedirs(dirname, exist_ok=True)
 
     def _initialize_model(self):
-        self.model.initialize_model()
-        self.load_from_train_checkpoint()
-
-    @console_print("Loading model...")
-    def load_from_train_checkpoint(self):        
-
-        self.model.load_model()
         self.global_step = self.checkpoint_dict['global_step']
 
         del self.checkpoint_dict
@@ -74,12 +68,48 @@ class Inference(InferenceOptions):
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Inference ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
     @torch.no_grad()
-    def run(self) :
+    def infer(self) :
         if self.metric_options.compute :
             self.log_metrics(*self.calc_metrics(), save=True, init=True)
         
         if self._log_images :
             self.parse_and_log_images()
+
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Comparison ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
+
+    @torch.no.grad()
+    def compare(self):
+        self.init_images_compare()
+        names, mean_agg_dict, std_agg_dict = [], [], []
+        while True:
+            try :
+                self._initialize_model()
+            except StopIteration :
+                break
+
+            # Metrics
+            if self.metric_options.compute :
+                mean_metrics, std_metrics = self.calc_metrics()
+                mean_agg_dict.append(mean_metrics)
+                std_agg_dict.append(std_metrics)
+                self.log_metrics(
+                    mean_metrics, std_metrics,
+                    save=True, 
+                    init=(len(names)==0),
+                    filename=os.path.join(self.logdir, "metrics.txt"))
+            
+            self.parse_images_compare()
+            names.append(self.name)
+
+        # Graphs
+        if self.metric_options.compute :
+            if self.logging_options.bar_graphs :
+                self.plot_graphs(mean_agg_dict, names, type="bar")
+            if self.logging_options.line_graphs :
+                self.plot_graphs(mean_agg_dict, names, type="line")
+
+        # Images
+        self.log_images_compare()
 
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Metrics ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
@@ -98,6 +128,7 @@ class Inference(InferenceOptions):
             
             agg_metric_dict = []
 
+            self.iter_loader = iter(self.loader)
             for _ in range(len(self.loader)) :
                 metric_dict = self.fn_metrics()
                 agg_metric_dict.append(metric_dict)
@@ -125,8 +156,35 @@ Std : {std_metrics}
             with open(filename, 'w' if init else 'a') as f :
                 f.write(prompt)
 
+    def plot_graphs(
+            self, 
+            mean_agg_dict :Iterable[dict], 
+            names         :Iterable[str], 
+            **kwargs
+    ) :
+        mean_dict = concatenate_loss_dict(mean_agg_dict)
+        logtools = LoggingTools(
+            self.logging_options.groups, self.logging_options.infos)
+        for group_name in logtools.groups.keys() :
+            logtools.plot_comparison_graph(
+                mean_dict    = mean_dict, 
+                group_name   = group_name, 
+                names        = names,
+                logdir       = self.logdir,
+                group_scales = (group_name!="main"), 
+                **kwargs)  
+
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Images ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
     @console_print("Plotting images")
     def parse_and_log_images(self) :
+        raise NotImplementedError
+
+    def init_images_compare(self):
+        raise NotImplementedError
+    
+    def parse_images_compare(self):
+        raise NotImplementedError
+    
+    def log_images_compare(self):
         raise NotImplementedError
