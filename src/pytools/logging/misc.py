@@ -1,4 +1,5 @@
 from functools import wraps
+from math import sqrt
 from typing import Iterable
 
 import torch
@@ -21,7 +22,7 @@ def concatenate_loss_dict(agg_loss_dict:Iterable[dict], list_output:bool=False) 
     return vals
 
 @type_check
-def aggregate_loss_dict(agg_loss_dict:Iterable[dict], list_output:bool=False) :
+def mean_loss_dict(agg_loss_dict:Iterable[dict], list_output:bool=False) :
     mean_vals = concatenate_loss_dict(agg_loss_dict, list_output=list_output)
     for key in mean_vals:
         if len(mean_vals[key]) > 0:
@@ -30,6 +31,19 @@ def aggregate_loss_dict(agg_loss_dict:Iterable[dict], list_output:bool=False) :
             print('{} has no value'.format(key))
             mean_vals[key] = 0
     return mean_vals
+
+@type_check
+def std_loss_dict(agg_loss_dict:dict, list_output:bool=False) :
+    mean_vals = mean_loss_dict(agg_loss_dict, list_output=list_output)
+    std_vals = concatenate_loss_dict(agg_loss_dict, list_output=list_output)                
+    for key in std_vals:
+        if len(std_vals[key]) > 0:
+            dev_vals = [(elt - mean_vals[key])**2 for elt in std_vals[key]]
+            std_vals[key] = sqrt(sum(dev_vals) / len(std_vals[key]))
+        else:
+            print('{} has no value'.format(key))
+            std_vals[key] = 0
+    return std_vals
 
 def console_print(text: str) :
     def console_print_decorateur(func) :

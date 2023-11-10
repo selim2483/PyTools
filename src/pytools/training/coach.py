@@ -45,22 +45,18 @@ class Coach(CoachOptions) :
     """Base class embedding training loop.
     It embeds basic training, validation, logging and model saving 
     functionnalities.
+    
+    Args:
+        options (Union[str, dict]): training loop options : path of the config
+            file or config dict. 
+        job_name (str): job name used for logging.
     """
-
     def __init__(
             self, 
             options  :Union[str, dict], 
             job_name :str, 
             **kwargs :dict
         ) :
-        """
-        Args:
-            options (options.train_options.CoachOptions): training loop 
-                options. 
-                See options.train_options for more details.
-            job_name (str, optional): job name used for logging.
-        """
-
         super().__init__(options)
         self.job_name = job_name
         self.global_step = 0

@@ -60,3 +60,19 @@ have {ndim} dimension, given has {x.ndim}")
             
         return wrapper
     return decorator
+
+def get_device() -> torch.device : 
+    """Check the availability of the GPU.
+
+    Returns:
+        (torch.device): device to use : cuda (GPU) or cpu.
+    """
+    device = torch.device(
+        "cuda" if torch.cuda.is_available() else "cpu")
+    print("Device name : ", torch.cuda.get_device_name())
+    print("Device name : ", torch.cuda.get_device_properties(device))
+    print("")
+
+    torch.cuda.empty_cache()
+
+    return device

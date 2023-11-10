@@ -11,8 +11,8 @@ import PIL.Image
 import torch
 from torchvision import transforms
 
-from ..utils.misc import EasyDict
-from .augmentations import augment
+from pytools.utils.misc import EasyDict
+from pytools.data.augmentations import augment
 
 __all__ = ["Dataset", "ImageFolderDataset"]
 
@@ -329,4 +329,10 @@ if __name__=="__main__" :
     img, label = data[3]
     print(img.shape)
     print(label)
+
+    from torch.utils.data import DataLoader
+    loader = DataLoader(data, batch_size=4)
+    print(loader.__class__.__name__)
+    print(type(loader))
+    print(type(iter(loader)))
 
