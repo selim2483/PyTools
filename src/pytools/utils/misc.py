@@ -76,3 +76,6 @@ def get_device() -> torch.device :
     torch.cuda.empty_cache()
 
     return device
+
+def slice_tensors(*args:torch.Tensor, start:int, stop:int) :
+    return [arg[start:stop] for arg in args]

@@ -92,6 +92,13 @@ class LoggingInferenceOptions(Options):
             self.logdir = self.default_logdir
 
 @dataclass(repr=False)
+class LoggingInferenceReconstructionOptions(LoggingInferenceOptions):
+    reconstruction: bool = True
+    fft2D:          bool = True
+    fft_rad:        bool = True
+    fft_multiband:  bool = False
+
+@dataclass(repr=False)
 class MetricsOptions(Options):
     compute :Optional[bool] = True
     seed    :Optional[int] = 0

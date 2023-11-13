@@ -188,3 +188,4 @@ Std : {std_metrics}
     
     def log_images_compare(self):
         raise NotImplementedError
+    
