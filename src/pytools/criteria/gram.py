@@ -1,16 +1,20 @@
-from typing import Iterable, List, Union
+from typing import Callable, Iterable, List, Optional, Union
 
 import torch
 import torch.nn as nn
 
-from ..criteria.loss import reduce_loss
+from ..criteria.loss import reduce_loss, Loss
+from ..nn import RandomProjector, initialize_vgg_rgb
 from ..nn.functionnal import compute_gram_matrix
+from ..options import VGGOptions
 from ..utils.checks import assert_shape, type_check
+from ..utils.misc import tensor2list
 
 
 LAYERS         = [1, 6, 11, 20, 29]
 LAYERS_WEIGHTS = [1/n**2 for n in [64,128,256,512,512]]
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Gram matrices ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 @type_check
 def gram_loss_mse_layer(
         x:torch.Tensor, x_hat:torch.Tensor, 
@@ -146,3 +150,61 @@ class GramLoss(nn.Module):
             center_gram=self.center_gram, 
             reduction=self.reduction
         )
+    
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~ Stochastic style loss ~~~~~~~~~~~~~~~~~~~~~~~~~ #
+
+class GatysStochasticLoss(Loss):
+
+    def __init__(
+            self, 
+            vgg_options: VGGOptions,
+            nstyle:      int,
+            inchannels:  int,
+            outchannels: int,      
+            vgg_fn:      Optional[Callable]       = None,                
+            center_gram: bool                     = True,
+            reduction:   str                      = 'mean', 
+            device:      Union[torch.device, str] = 'cpu'
+    ):
+        super().__init__(reduction, device)
+        self.vgg_options = vgg_options
+        self.inchannels = inchannels
+        self.center_gram = center_gram
+
+        self.ntriplets = min(
+            nstyle, inchannels * (inchannels - 1) * (inchannels - 2))
+        self.random_projector = RandomProjector(
+            inchannels, outchannels, determinist=self.ntriplets<=nstyle)
+        if vgg_fn is None:
+            _, _, self.vgg_fn = initialize_vgg_rgb(
+                self.vgg_options, device=self.device)
+        else:
+            self.vgg_fn = vgg_fn
+        self.loss_dict = dict()
+        
+    def loss_fn(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        b = x.shape[0]
+        style_loss_stochastic = torch.zeros(b, device=self.device)
+
+        # For logging/inferences purposes
+        for band in range(self.inchannels) :
+            self.loss_dict[f"style_loss_band_{band}"] = []
+
+        for _ in range(self.ntriplets):
+            style_loss = gram_loss_mse(
+                self.vgg_fn(x), 
+                self.vgg_fn(y), 
+                weights=self.vgg_options.layers_weights, 
+                center_gram=self.center_gram,
+                reduction='none'
+            )
+
+            # Add style loss to the concerned bands
+            for band in self.random_projector.channels :
+                self.loss_dict[f"texture_loss_band_{band}"] += tensor2list(
+                    style_loss)
+                
+            style_loss_stochastic += style_loss
+            self.random_projector.generate()
+
+        return style_loss_stochastic / self.ntriplets

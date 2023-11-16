@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 __all__ = [
     "Options", "DataOptions", "LoggingOptions", "OptimizerOptions", 
@@ -59,12 +59,14 @@ class Options :
 @dataclass(repr=False)
 class DataOptions(Options) :
     path        :str
+    type        :str              = "sentinel2_random"
+    treshold    :str              = 0.8
     max_size    :Union[int, None] = None
     resolution  :int              = 256
     use_labels  :bool             = False
     random_seed :int              = 0
     augment     :bool             = True
-    nchannels    :int             = 3
+    nchannels   :int              = 3
         
 @dataclass(repr=False)
 class LoggingOptions(Options) :
@@ -80,28 +82,26 @@ class LoggingOptions(Options) :
 
 @dataclass(repr=False)
 class LoggingInferenceOptions(Options):
-    default_logdir  :str
-    groups          :dict
-    infos           :dict
-    logdir          :Optional[str]  = None
-    bar_graphs      :Optional[bool] = True
-    line_graphs     :Optional[bool] = False
+    default_logdir: str
+    groups:         dict
+    infos:          dict
+    logdir:         Optional[str]  = None
+    bar_graphs:     Optional[bool] = True
+    line_graphs:    Optional[bool] = False
+    # Images
+    reconstruction: bool           = True
+    fft2D:          bool           = True
+    fft_rad:        bool           = True
+    fft_multiband:  bool           = False
 
     def __post_init__(self):
         if self.logdir is None:
             self.logdir = self.default_logdir
 
 @dataclass(repr=False)
-class LoggingInferenceReconstructionOptions(LoggingInferenceOptions):
-    reconstruction: bool = True
-    fft2D:          bool = True
-    fft_rad:        bool = True
-    fft_multiband:  bool = False
-
-@dataclass(repr=False)
 class MetricsOptions(Options):
-    compute :Optional[bool] = True
-    seed    :Optional[int] = 0
+    compute :bool = True
+    seed    :int  = 0
 
 @dataclass(repr=False)
 class OptimizerOptions(Options) :
@@ -114,6 +114,13 @@ class OptimizerOptions(Options) :
 class TrainingOptions(Options) :
     max_steps :Union[int, None] = None
     max_kimg  :Union[int, None] = None
+
+@dataclass(repr=False)
+class VGGOptions(Options):
+    path:           str
+    layers:         List[int]
+    layers_weights: List[float]
+    batchnorm:      bool = False
 
 if __name__=="__main__":
     c = LoggingInferenceOptions(default_logdir="a")

@@ -1,3 +1,9 @@
-from .head_options import HeadOptions, CoachOptions
+from .head_options import (
+    HeadOptions, 
+    CoachOptions, 
+    InferenceOptions, InferenceReconstructionOptions)
 from .options import (
-    Options, DataOptions, LoggingOptions, OptimizerOptions, TrainingOptions)
+    Options, DataOptions, 
+    LoggingOptions, LoggingInferenceOptions,
+    LoggingInferenceReconstructionOptions,
+    MetricsOptions, OptimizerOptions, TrainingOptions, VGGOptions)

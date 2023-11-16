@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from ..utils.checks import type_check
 from ..utils.misc import unsqueeze_squeeze
-from .slice import SliceLoss, sliced_function
+from .slice import SliceLoss, sliced_distance
 
 @type_check
 @unsqueeze_squeeze(ndim=3, ntensors=2)
@@ -34,7 +34,7 @@ def histogram_loss1D(x:torch.Tensor, y:torch.Tensor, p:int=2) -> torch.Tensor:
 
 def sliced_histogram_loss(
         x:torch.Tensor, y:torch.Tensor, p:int=2,
-        nslice:Union[int, None]=None, band:Union[int, None]=None, 
+        nslice:Union[int, None]=None, 
         device:Union[torch.device, str]="cpu"
 ) -> torch.Tensor:
     """Computes sliced histogram distance between two images :
@@ -52,10 +52,6 @@ def sliced_histogram_loss(
             perform.
             If ``int``, computes random sliced distance.
             Defaults to None.
-        band (Union[int, None], optional): band index on which to compute the
-            distance.
-            If ``int``, computes distance on  chosen band.
-            Defaults to None.
         device (Union[torch.device, str], optional): device on which to place
             the tensors. 
             Defaults to "cpu".
@@ -63,9 +59,8 @@ def sliced_histogram_loss(
     Returns:
         torch.Tensor: sliced histogram distances.
     """
-    fn = sliced_function(
-        histogram_loss1D, nslice=nslice, band=band, device=device)
-    return fn(x, y, p=p)
+    return sliced_distance(
+        histogram_loss1D, x, y, p=p, nslice=nslice, device=device)
 
 class HistogramLoss(SliceLoss):
     """Histogram Loss module.

@@ -79,3 +79,7 @@ def get_device() -> torch.device :
 
 def slice_tensors(*args:torch.Tensor, start:int, stop:int) :
     return [arg[start:stop] for arg in args]
+
+def tensor2list(x:torch.Tensor) :
+    assert type(x)==torch.Tensor, "x should be a tensor"
+    return list(x.cpu().numpy())

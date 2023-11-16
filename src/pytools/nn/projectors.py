@@ -35,47 +35,45 @@ class RandomProjector(torch.nn.Module):
     For consistent training, the random channels need to be generated using
     the method provided for this purpose. 
     """
-    def __init__(self, in_channels:int, all_arrangements:bool=False):
+    def __init__(
+            self, inchannels: int, outchannels: int, determinist: bool=False):
         """
         Args:
-            in_channels (int): number of channels of images.
-                all_arrangements (bool, optional): whether to test every
-                possible arrangements in a deterministic order to avoid
-                duplication. 
-                This feature is usefull in the case of testing.
-                If ``True``, :meth:`generate` changes the projection channels
-                to the next arrangement.
-                If ``False``, :meth:`generate` generates a new random
-                arrangement.
-                Defaults to ``False``.
+            inchannels (int): number of channels of input images.
+            outchannels (int): number of channels of output images.
+            determinist (bool, optional): whether to test every
+            possible arrangements in a deterministic order to avoid
+            duplication. 
+            This feature is usefull in the case of testing.
+            If ``True``, :meth:`generate` changes the projection channels
+            to the next arrangement.
+            If ``False``, :meth:`generate` generates a new random
+            arrangement.
+            Defaults to ``False``.
         """
         super().__init__()
-        self.in_channels = in_channels
-        self.all_arrangements = all_arrangements
-        if self.all_arrangements :
+        self.inchannels = inchannels
+        self.outchannels = min(inchannels, outchannels)
+        self.determinist = determinist
+        if self.determinist :
             self.triplets = itertools.permutations(
-                range(self.in_channels), 3)
+                range(self.inchannels), self.outchannels)
         self.generate()
 
     def generate(self) :
-        """Generates a new arrangement, random if :attr:`arrangements` is
-        ``True``, determinist if not.
+        """Generates a new arrangement, random if :attr:`determinist` is
+        ``False``, determinist if ``True``.
         """
-        if self.in_channels!=1 :
-            if self.in_channels!=3 :
-                if self.all_arrangements :
-                    try : 
-                        self.channels = next(self.triplets)
-                    except StopIteration :
-                        self.triplets = itertools.permutations(
-                            range(self.in_channels), 3)
-                        self.channels = next(self.triplets)
-                else :
-                    self.channels = random.sample(range(self.in_channels), 3)
-            else :
-                self.channels = [0,1,2]
-        else:
-            self.channels = [0]
+        if self.determinist :
+            try : 
+                self.channels = next(self.triplets)
+            except StopIteration :
+                self.triplets = itertools.permutations(
+                    range(self.inchannels), self.outchannels)
+                self.channels = next(self.triplets)
+        else :
+            self.channels = random.sample(
+                range(self.inchannels), self.outchannels)
 
     def forward(self, x:torch.Tensor) :
         return x[..., self.channels, :, :]

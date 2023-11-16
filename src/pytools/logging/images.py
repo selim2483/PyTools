@@ -178,7 +178,7 @@ def make_grid_plt(
     x = torch.arange(y[0].shape[-1]).reshape(-1, 1) + 1
     y = map(fn, imgs)
 
-    fig, axes = plt.suby(
+    fig, axes = plt.subplots(
         nplots, nplots, figsize=(5 * nplots, 5 * nplots), dpi=100)
     if nplots==1 :
         axes.loglog(x.T[0], y[0][0], color='b', label=f'original')

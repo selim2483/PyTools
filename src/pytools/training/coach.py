@@ -8,11 +8,11 @@ import torch
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.utils import save_image
-from typing import Union
+from typing import Any, Union
 
 from ..options.options import OptimizerOptions
 from ..options.head_options import CoachOptions
-from ..logging import aggregate_loss_dict, console_print, profiled_function 
+from ..logging import mean_loss_dict, console_print, profiled_function 
 from ..logging import LoggingDir
 
 
@@ -160,7 +160,14 @@ class Coach(CoachOptions) :
     
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Training ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
-    def calc_loss(self, phase:str, x:torch.Tensor) -> dict:
+    @profiled_function
+    def data_fetch(self) -> Any:
+        x, c = next(self.iter_train_loader)
+        self.global_step += 1
+        self.nimg += x.shape[0]
+        return x, c
+
+    def calc_loss(self, phase:str, data:Any) -> dict:
         raise NotImplementedError
     
     def train(self) :
@@ -178,17 +185,14 @@ class Coach(CoachOptions) :
             self.task_steps = self.progress.add_task(
                 "Steps", total=self.max_steps)
 
+            self.iter_train_loader = iter(self.train_loader)
             agg_loss_dict = collections.deque(
                 maxlen=self.logging_options.max_queue_train)
             while not self._reach_max():
                 self._train()
-                with torch.autograd.profiler.record_function('data_fetch'):
-                    x, c = next(self.train_loader)
 
                 # Forward pass and loss
-                self.shape = x.shape
-                self.global_step += 1
-                self.nimg += self.shape[0]
+                data = self.data_fetch()
                 loss_dict = dict()
                 for phase in self.phases :
                     phase.opt.zero_grad()
@@ -196,7 +200,7 @@ class Coach(CoachOptions) :
                         module.requires_grad_(True)
                     loss_dict = {
                         **loss_dict, 
-                        **self.calc_loss(phase.name, x)
+                        **self.calc_loss(phase.name, data)
                     }
                     for module in phase.modules :
                         module.requires_grad_(False)
@@ -205,11 +209,10 @@ class Coach(CoachOptions) :
                         phase.opt.step()
                 agg_loss_dict.append(loss_dict)
                 self._update_hyparams()
-                self.progress.update(self.task_steps, advance=1)
-                self.progress.update(
-                    self.task_kimg, advance=self.shape[0] / 1000)
+                self.progress.update(self.task_steps, completed=self.global_step)
+                self.progress.update(self.task_kimg, completed=self.kimg)
                 
-                train_loss_dict = aggregate_loss_dict(list(agg_loss_dict))
+                train_loss_dict = mean_loss_dict(list(agg_loss_dict))
 
                 with torch.no_grad() :
                     # Validation
@@ -241,7 +244,7 @@ class Coach(CoachOptions) :
             _, loss_dict = self.calc_loss(x)
             agg_loss_dict.append(loss_dict)
 
-        return aggregate_loss_dict(agg_loss_dict)
+        return mean_loss_dict(agg_loss_dict)
     
     def _train(self) :
         raise NotImplementedError

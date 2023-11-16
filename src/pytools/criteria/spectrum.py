@@ -4,7 +4,7 @@ import torch
 from ..data import periodic_smooth_decomposition
 from ..utils.checks import assert_shape, type_check 
 from ..utils.misc import unsqueeze_squeeze
-from .slice import SliceLoss, sliced_function
+from .slice import SliceLoss, sliced_distance
 
 # ------------------------ Spectral orthogonal loss ------------------------ #
 
@@ -67,7 +67,6 @@ def sliced_spectrum_ortho_loss(
         p            :int                      = 2, 
         remove_cross :bool                     = True,
         nslice       :Union[int, None]         = None, 
-        band         :Union[int, None]         = None, 
         device       :Union[torch.device, str] = "cpu"
 ) -> torch.Tensor:
     """Computes sliced spectral distance in the image space :
@@ -89,10 +88,6 @@ def sliced_spectrum_ortho_loss(
             perform.
             If ``int``, computes random sliced distance.
             Defaults to None.
-        band (Union[int, None], optional): band index on which to compute the
-            distance.
-            If ``int``, computes distance on  chosen band.
-            Defaults to None.
         device (Union[torch.device, str], optional): device on which to place
             the tensors. 
             Defaults to "cpu".
@@ -100,9 +95,11 @@ def sliced_spectrum_ortho_loss(
     Returns:
         torch.Tensor: sliced spectral distance in image space.
     """
-    fn = sliced_function(
-        spectrum_ortho_loss1D, nslice=nslice, band=band, device=device)
-    return fn(x, y, p=p, remove_cross=remove_cross)
+    return sliced_distance(
+        spectrum_ortho_loss1D, 
+        x, y, p=p, remove_cross=remove_cross, 
+        nslice=nslice, device=device
+    )
 
 class SpectralOrthoLoss(SliceLoss):
     """Orthogonal spectral loss module.
@@ -155,13 +152,11 @@ def spectral_loss1D(x:torch.Tensor, y:torch.Tensor, p:int=2) -> torch.Tensor:
     return torch.sqrt(torch.mean(
         (20 * torch.log(fpx.abs()) - 20 * torch.log(fpy.abs()))**p))
 
-
 def sliced_spectral_loss(
         x            :torch.Tensor, 
         y            :torch.Tensor, 
         p            :int                      = 2, 
         nslice       :Union[int, None]         = None, 
-        band         :Union[int, None]         = None, 
         device       :Union[torch.device, str] = "cpu"
 ) -> torch.Tensor:
     """Computes sliced PSD distance :
@@ -179,10 +174,6 @@ def sliced_spectral_loss(
             perform.
             If ``int``, computes random sliced distance.
             Defaults to None.
-        band (Union[int, None], optional): band index on which to compute the
-            distance.
-            If ``int``, computes distance on  chosen band.
-            Defaults to None.
         device (Union[torch.device, str], optional): device on which to place
             the tensors. 
             Defaults to "cpu".
@@ -190,9 +181,8 @@ def sliced_spectral_loss(
     Returns:
         torch.Tensor: sliced PSD distance.
     """
-    fn = sliced_function(
-        spectral_loss1D, nslice=nslice, band=band, device=device)
-    return fn(x, y, p=p)
+    return sliced_distance(
+        spectral_loss1D, x, y, p=p, nslice=nslice, device=device)
 
 class SpectralLoss(SliceLoss):
     """PSD loss module.
@@ -293,7 +283,6 @@ def sliced_radial_spectral_loss(
         y            :torch.Tensor, 
         p            :int                      = 2, 
         nslice       :Union[int, None]         = None, 
-        band         :Union[int, None]         = None, 
         device       :Union[torch.device, str] = "cpu"
 ) -> torch.Tensor:
     """Computes sliced radial PSD distance :
@@ -311,10 +300,6 @@ def sliced_radial_spectral_loss(
             perform.
             If ``int``, computes random sliced distance.
             Defaults to None.
-        band (Union[int, None], optional): band index on which to compute the
-            distance.
-            If ``int``, computes distance on  chosen band.
-            Defaults to None.
         device (Union[torch.device, str], optional): device on which to place
             the tensors. 
             Defaults to "cpu".
@@ -322,9 +307,8 @@ def sliced_radial_spectral_loss(
     Returns:
         torch.Tensor: sliced radial PSD distance.
     """
-    fn = sliced_function(
-        radial_spectral_loss1D, nslice=nslice, band=band, device=device)
-    return fn(x, y, p=p)
+    return sliced_distance(
+        radial_spectral_loss1D, x, y, p=p, nslice=nslice, device=device)
 
 class RadialSpectralLoss(SliceLoss):
     """Radial PSD loss module.

@@ -3,7 +3,7 @@
 import argparse
 import json
 import os
-from typing import Union
+from typing import Union, override
 import zipfile
 
 import numpy as np
@@ -92,7 +92,7 @@ class Dataset(torch.utils.data.Dataset):
 
     def close(self): # to be overridden by subclass
         pass
-
+    
     def _load_raw_image(self, raw_idx): # to be overridden by subclass
         raise NotImplementedError
 
@@ -189,7 +189,11 @@ class ImageFolderDataset(Dataset):
 
         if os.path.isdir(self._path):
             self._type = 'dir'
-            self._all_fnames = {os.path.relpath(os.path.join(root, fname), start=self._path) for root, _dirs, files in os.walk(self._path) for fname in files}
+            self._all_fnames = {
+                os.path.relpath(os.path.join(root, fname), start=self._path) 
+                for root, _dirs, files in os.walk(self._path) 
+                for fname in files
+            }
         elif self._file_ext(self._path)=='.zip':
             self._type = 'zip'
             self._all_fnames = set(self._get_zipfile().namelist())
@@ -197,7 +201,11 @@ class ImageFolderDataset(Dataset):
             raise IOError('Path must point to a directory or zip')
 
         PIL.Image.init()
-        self._image_fnames = sorted(fname for fname in self._all_fnames if self._file_ext(fname) in PIL.Image.EXTENSION)
+        self._image_fnames = sorted(
+            fname 
+            for fname in self._all_fnames 
+            if self._file_ext(fname) in PIL.Image.EXTENSION
+        )
         if len(self._image_fnames)==0:
             raise IOError('No image files found in the specified path')
 

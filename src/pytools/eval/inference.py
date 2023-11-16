@@ -37,11 +37,19 @@ class Inference(InferenceOptions):
 
     @property
     def dirnames(self):
-        return [self.logdir]
+        dirnames = [self.logdir]
+        if self.logging_options.reconstruction:
+            dirnames.append(os.path.join(self.logdir, "reconstruction"))
+        if self.logging_options.fft2D:
+            dirnames.append(os.path.join(self.logdir, "fft2D"))
+        if self.logging_options.fft_rad:
+            dirnames.append(os.path.join(self.logdir, "fft_rad"))
+
+        return dirnames
     
     @property
     def _log_images(self):
-        return True
+        return len(self.dirnames) > 1
     
     def _initialize_dataset(self):
         raise NotImplementedError

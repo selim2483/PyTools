@@ -6,7 +6,7 @@ import yaml
 
 from .options import (
     Options, DataOptions, LoggingOptions, LoggingInferenceOptions, 
-    MetricsOptions, TrainingOptions
+    LoggingInferenceReconstructionOptions, MetricsOptions, TrainingOptions
 )
 
 __all__ = ["HeadOptions", "CoachOptions"]
@@ -103,4 +103,5 @@ class InferenceOptions(HeadOptions) :
         self.name, self.checkpoint_path = next(self.checkpoint_paths)
         self.get_infos_from_checkpoint()
 
-        return self.name
+        return self.name 
+    
