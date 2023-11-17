@@ -44,7 +44,7 @@ class InferenceOptions(head_options.InferenceOptions):
         self.data_options    = options.DataOptions(**self.cfg.get("data")) 
         self.metric_options  = MetricsOptions(**self.cfg.get("metrics"))
         self.vgg_options     = options.VGGOptions(**self.cfg.get("vgg"))
-        self.logging_options = options.LoggingOptions(
+        self.logging_options = options.LoggingInferenceOptions(
             **self.cfg.get("logging"), 
             default_logdir=getattr(self, "default_logdir", default=None)
         )

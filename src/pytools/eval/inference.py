@@ -138,7 +138,7 @@ class Inference(InferenceOptions):
 
             self.iter_loader = iter(self.loader)
             for _ in range(len(self.loader)) :
-                metric_dict = self.fn_metrics()
+                metric_dict = self.fn_metrics(*next(self.iter_loader))
                 agg_metric_dict.append(metric_dict)
                 self.progress.update(self.task, advance=1)
 

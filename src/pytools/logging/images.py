@@ -1,6 +1,7 @@
 from functools import partial
+from math import ceil, sqrt
 import os
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, Iterable, List, Optional, Tuple, Union
 from matplotlib import pyplot as plt
 
 import torch
@@ -146,10 +147,10 @@ def make_grid(
     Returns:
         dict[str, torch.Tensor]: dict of RGB-like images (tensors)
     """
-    x = TF.center_crop(scale_tensor(x, xrange, outrange), resolution)
-    ys = map(
-        lambda img: TF.center_crop(
-            scale_tensor(x, yrange, outrange), resolution), ys)
+    x = fn(TF.center_crop(scale_tensor(x, xrange, outrange), resolution))
+    _fn = lambda img: fn(TF.center_crop(
+            scale_tensor(img, yrange, outrange), resolution))
+    ys = map(_fn, ys)
     cat = F.interpolate(
         torch.cat((x, *ys, x) if gt_right else (x, *ys), dim=3), 
         scale_factor=2, 
@@ -158,11 +159,14 @@ def make_grid(
 
     return to_rgb(torchvision.utils.make_grid(cat, nrow=1), format=format)
 
-def make_grid_plt(
-        *imgs:    torch.Tensor,
-        fn:       Callable[[torch.Tensor], torch.Tensor],
-        savefig:  Optional[str] = None,
-        nplots:     int           = 2
+_iter_tensor = Union[Iterable[torch.Tensor], torch.Tensor]
+
+def log_grid_plt(
+        y1:       _iter_tensor,
+        y2:       Optional[_iter_tensor] = None,
+        label1:   str                    = "original",
+        label2:   str                    = "reconstructed",
+        savefig:  Optional[str]          = None
 ):
     """Makes a grid of plt plots of time series obtained by applying a
     function on images.
@@ -175,24 +179,17 @@ def make_grid_plt(
         nimg (int, optional): number of plots. 
             Defaults to 2.
     """
-    x = torch.arange(y[0].shape[-1]).reshape(-1, 1) + 1
-    y = map(fn, imgs)
+    x = torch.arange(y1[0].shape[-1]).reshape(-1, 1) + 1
+    y2 = [None for _ in range(len(y1))] if y2 is None else y2
 
+    nplots = ceil(sqrt(len(y1)))
     fig, axes = plt.subplots(
         nplots, nplots, figsize=(5 * nplots, 5 * nplots), dpi=100)
-    if nplots==1 :
-        axes.loglog(x.T[0], y[0][0], color='b', label=f'original')
-        axes.legend()
-    else :
-        for i,ax in enumerate(axes.flatten()):
-            for j in range(len(y)):
-                ax.loglog(
-                    x.T[0], y[j][i], color='b', label=f'original {i}')
-                ax.loglog(
-                    x.T[0], y[j][i], 
-                    color='r', label=f'reconstructed {i}'
-                )
-                ax.legend()
+    for i, (_y1, _y2) in enumerate(zip(y1, y2)):
+        axes[i].loglog(x.T[0], y1[i], color='b', label=f'{label1} {i}')
+        if y2 is not None:
+            axes[i].loglog(x.T[0], y2[i], color='r', label=f'{label2} {i}')
+        axes[i].legend()
 
     if savefig is not None :
         fig.savefig(savefig)

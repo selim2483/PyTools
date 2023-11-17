@@ -60,13 +60,14 @@ class Options :
 class DataOptions(Options) :
     path        :str
     type        :str              = "sentinel2_random"
+    format      :str              = "sentinel"
     treshold    :str              = 0.8
     max_size    :Union[int, None] = None
     resolution  :int              = 256
     use_labels  :bool             = False
     random_seed :int              = 0
     augment     :bool             = True
-    nchannels   :int              = 3
+    nchannels   :int              = 11
         
 @dataclass(repr=False)
 class LoggingOptions(Options) :

@@ -1,25 +1,29 @@
 from math import ceil
 import os
 import random
-from typing import Any, Optional, Union
+from typing import Optional, Tuple, Union
 
 import torch
-from torch.utils.data import DataLoader
-import torchvision
 
 from .inference import Inference
 from ..criteria import (
     GramLoss, GatysStochasticLoss, SIFID, 
     histogram_loss1D, sliced_histogram_loss, 
-    spectrum_ortho_loss1D, sliced_spectrum_ortho_loss, 
+    spectrum_ortho_loss1D, sliced_spectrum_ortho_loss,
+    radial_profile, 
     corr_length, sliced_corr_length)
-from ..nn import RandomProjector, MeanProjector, initialize_vgg_rgb
+from ..data import periodic_smooth_decomposition
+from ..nn import MeanProjector, initialize_vgg_rgb
+from ..logging.images import log_images, make_grid, log_grid_plt
 from ..logging.misc import console_print
 from ..options.texture import InferenceOptions
 from ..utils.misc import slice_tensors, tensor2list
 
 
 class TextureReconstructionInference(Inference, InferenceOptions):
+
+    xrange: int = (0, 255)
+    yrange: int = (-1., 1.)
 
     def __init__(self, options: str | dict):
         super().__init__(options)
@@ -165,4 +169,65 @@ class TextureReconstructionInference(Inference, InferenceOptions):
     
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Images ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
 
+    def parse_reconstruction(self) -> Tuple[torch.Tensor, torch.Tensor]:
+        raise NotImplementedError
     
+    @console_print("Plotting images")
+    def parse_and_log_images(self) :
+        x, y = self.parse_reconstruction()
+        nfiles = ceil(len(x)/self.logging_options.nimg)
+
+        def _log_images(
+                _x:  torch.Tensor, 
+                _y:  torch.Tensor, 
+                idx: Optional[Union[int, str]] = None
+        ):
+            if self.logging_options.reconstruction :
+                log_images(
+                    make_grid(
+                        x, y, 
+                        xrange     = self.xrange, yrange=self.yrange, 
+                        format     = self.data_options.format, 
+                        resolution = self.data_options.resolution
+                    ),
+                    logdir = self.logging_options.logdir,
+                    name   = "reconstruction",
+                    idx    = idx
+                )
+            if self.logging_options.fft2D :
+                fft2D_fn = lambda img: periodic_smooth_decomposition(
+                    torch.mean(img, dim=1))[0]
+                log_images(
+                    make_grid(
+                        x, y, 
+                        fn         = fft2D_fn,
+                        xrange     = self.xrange, yrange=self.yrange, 
+                        format     = self.data_options.format, 
+                        resolution = self.data_options.resolution
+                    ),
+                    logdir = self.logging_options.logdir,
+                    name   = "fft2D_mean",
+                    idx    = idx
+                )
+            if self.logging_options.fft_multiband:
+                for band in range(self.nbands):
+                    fft2D_fn = lambda img: periodic_smooth_decomposition(
+                        img[:, band, ...])[0]
+                    log_images(
+                        make_grid(
+                            x, y, 
+                            fn         = fft2D_fn,
+                            xrange     = self.xrange, yrange=self.yrange, 
+                            format     = self.data_options.format, 
+                            resolution = self.data_options.resolution
+                        ),
+                        logdir = self.logging_options.logdir,
+                        name   = f"fft2D_band_{band}",
+                        idx    = idx
+                    )
+            if self.logging_options.fft_rad:
+                log_grid_plt(
+                    radial_profile(x.mean(dim=1), device=self.device),
+                    radial_profile(y.mean(dim=1), device=self.device),
+                    savefig=os.path.join(self.logdir, "fft_rad"))
+
