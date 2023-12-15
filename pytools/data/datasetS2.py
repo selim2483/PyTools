@@ -29,7 +29,17 @@ def get_band_indexs(mode:str) :
         return list(range(1, 12))
     
 def load_image_sentinel2(
-        path: str, band_indexs: list, height: int, width: int):
+        path: str, mode: Union[str, list], height: int, width: int):
+    
+    if mode in ["grey", "rgb", "multispectral"]:
+        band_indexs = get_band_indexs(mode)
+    elif isinstance(mode, str):
+        band_indexs = get_band_indexs("multispectral")
+    elif isinstance(mode, list):
+        band_indexs = mode
+    else:
+        raise ValueError("mode should be 'str' or a list of indexs.")
+    
     img = np.empty(
             (len(band_indexs), height, width), dtype="uint8")
     
@@ -61,7 +71,7 @@ class DatasetS2Determinist(Dataset) :
         self.img_names = os.listdir(self.root)
         self.nbands = nbands
         self.height, self.width = height, width
-        self.band_indexs = get_band_indexs(mode, nbands)
+        self.band_indexs = get_band_indexs(mode)
 
     def __getitem__(self, index) :
         print(index)
@@ -84,13 +94,14 @@ class DatasetS2Random(Dataset) :
             height:int=256, 
             width:int=256, 
             mode:int="multispectral",
-            s:int=0.8) :
+            s:int=0.8,
+            **kwargs) :
         
         self.root = root
         self.img_names = os.listdir(self.root)
         self.nbands = nbands
         self.height, self.width = height, width
-        self.band_indexs = get_band_indexs(mode, nbands)
+        self.band_indexs = get_band_indexs(mode)
         self.s = s
 
     def __getitem__(self, index):

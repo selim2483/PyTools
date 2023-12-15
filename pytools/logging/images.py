@@ -51,8 +51,8 @@ def to_rgb(
         dict[str, torch.Tensor]: dict of RGB-like images (tensors).
     """
     assert_dim(img, ndim=3)
-        
-    if format=="sentinel" :
+    
+    if format=="sentinel2" :
         assert_shape(img, (None, 11, None, None))
         return {
             reformat("rgb", name) : img[1:4],
@@ -61,7 +61,7 @@ def to_rgb(
             reformat("global", name) : mean_project(img, 3)
         }
     else :
-        return {name : img[:3]}
+        return {reformat(format, name) : img[:3]}
     
 def scale_tensor(
         x:         torch.Tensor, 

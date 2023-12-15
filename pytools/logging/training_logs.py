@@ -14,6 +14,10 @@ class TrainingLogs:
     logging_options: LoggingOptions
     global_step: int
 
+    @property
+    def progress_key(self):
+        return self.global_step
+
     @profiled_function
     @console_print("Initializing Logger")
     def _initialize_logger(self):
@@ -68,7 +72,7 @@ class TrainingLogs:
             self, metric_dict: dict, dir: str = "metrics"):
         return map_dict(
             lambda key, value: self.logger.add_scalar(
-                f"{dir}/{key}", value, self.global_step),
+                f"{dir}/{key}", value, self.progress_key),
             metric_dict
         )
     
@@ -76,43 +80,56 @@ class TrainingLogs:
         map_dict(
             lambda key, value: self.logger.add_image(
                 f"images/{key}", 
-                scale_tensor(value, in_range=(-1., 1.), out_range=(0., 1.)), 
-                self.global_step
+                scale_tensor(value, in_range=(-1., 1.), out_range=(0., 1.)),  
+                self.progress_key
             ), 
             img_dict
         )
     
     def log_images_local(self, img_dict: dict):
         def fn(key, value):
-            name = f"{self.job_name}_it{self.global_step}_{key}.png"
+            name = f"{self.job_name}_it{self.progress_key}_{key}.png"
             img = scale_tensor(
                 value, in_range=(-1., 1.), out_range=(0., 1.))
             save_image(img, os.path.join(self.figdir, name))
         map_dict(fn, img_dict)
 
     def check_image_interval(self, mode:str="local") :
-        # Initialization counters
-        if not hasattr(self, "image_local_count") :
-            self.image_local_count = 0
-        if not hasattr(self, "image_logger_count") :
-            self.image_logger_count = 0
-
-        # Checks
+        if self.progress_key == 0:
+            return True  
         if mode=="local" :
-            res = (self.global_step 
+            if not hasattr(self, "image_local_count") :
+                self.image_local_count = 0
+            res = (self.progress_key 
                    // self.logging_options.image_interval_local)
             return res > self.image_local_count
         elif mode=="logger" :
-            res = (self.global_step 
+            if not hasattr(self, "image_logger_count") :
+                self.image_logger_count = 0
+            res = (self.progress_key 
                    // self.logging_options.image_interval_logger)
             return res > self.image_logger_count
         elif mode=="both" :
-            res = max(
-                (self.global_step 
-                 // self.logging_options.image_interval_local 
-                 - self.image_local_count), 
-                (self.global_step 
-                 // self.logging_options.image_interval_logger 
-                 - self.image_logger_count))
-            return res > 0
+            return (self.check_image_interval("local") 
+                    or self.check_image_interval("logger"))
+        
+    def update_logger_counters(self):
+        self.image_local_count  = (
+            self.progress_key // self.logging_options.image_interval_local)
+        self.image_logger_count = (
+            self.progress_key // self.logging_options.image_interval_logger)
+        
+    def parse_images(self) -> dict:
+        raise NotImplementedError
+    
+    def parse_and_log_images(self):
+        if self.check_image_interval("both") :
+            img_dict = self.parse_images()
+            
+            if self.check_image_interval("local") :
+                self.log_images_local(img_dict)
+            if self.check_image_interval("logger") :
+                self.log_images_tensorboard(img_dict)
+
+            self.update_logger_counters()
     

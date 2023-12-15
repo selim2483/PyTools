@@ -5,6 +5,7 @@ from typing import Any, Callable, Iterable, Optional, Tuple
 
 import torch
 
+_tensor_op = Callable[[torch.Tensor], torch.Tensor]
 
 def error(msg: str):
     print('Error: ' + msg)
@@ -56,7 +57,7 @@ should be a tensors"
                     **kwargs
                 )
                 if isinstance(res, torch.Tensor):
-                    return res
+                    return res.squeeze(0)
                 elif isinstance(res, Iterable):
                     return map(lambda x: x.squeeze(0), res)
                 else:
@@ -96,8 +97,3 @@ def tensor2list(x:torch.Tensor) :
         x = x.unsqueeze(0)
     return list(x.detach().cpu().numpy())
 
-def inversible_matrix(n:int):
-    while True:
-        A = torch.randn(n, n)
-        if torch.det(A) != 0:
-            return A

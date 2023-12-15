@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from torch.types import _float
 
 from ..utils.checks import assert_dim, assert_shape
-from ..utils.misc import unsqueeze_squeeze
+from ..utils.misc import unsqueeze_squeeze, color_operation
 
 __all__ = [
     "RandomProjector", "SampleProjector", "KDEProjector", "PCAProjector",
@@ -90,21 +90,23 @@ class MeanProjector(StaticProjector) :
         self.nc_out = nc_out
         self.kernel_size = ceil(nc_in / nc_out)
 
-    @unsqueeze_squeeze
     def forward(self, x:torch.Tensor) :
-        assert_shape(x, (None, self.nc_in, None, None))
-        if self.nc_in==1 :
-            y = x.repeat((1, 3, 1, 1))
-        else :
-            n, c, w, h = x.size()
-            x = x.reshape(n, c, h * w).permute(0, 2, 1)
-            pooled = F.avg_pool1d(
-                x,
-                kernel_size=self.kernel_size,
-                ceil_mode=True
-            )
-            assert_shape(pooled, (None, None, self.nc_out))
-            return pooled.permute(0, 2, 1).view(n, self.nc_out, w, h)
+        @unsqueeze_squeeze()
+        def fn(_x: torch.Tensor):
+            assert_shape(_x, (None, self.nc_in, None, None))
+            if self.nc_in==1 :
+                y = _x.repeat((1, 3, 1, 1))
+            else :
+                n, c, w, h = _x.size()
+                _x = _x.reshape(n, c, h * w).permute(0, 2, 1)
+                pooled = F.avg_pool1d(
+                    _x,
+                    kernel_size=self.kernel_size,
+                    ceil_mode=True
+                )
+                assert_shape(pooled, (None, None, self.nc_out))
+                return pooled.permute(0, 2, 1).view(n, self.nc_out, w, h)
+        return fn(x)
         
 class SampleProjector(StaticProjector) :
     """Projects multispectral images into into a chosen sub-color space.
@@ -158,7 +160,13 @@ class PCAProjector(StaticProjector):
     """Class implementing a PCA projection operator and its inversion
     counterpart.
     """
-    def __init__(self, mu:torch.Tensor, lambdas:torch.Tensor, V:torch.Tensor):
+    def __init__(
+            self, 
+            mu:      torch.Tensor, 
+            lambdas: torch.Tensor, 
+            V:       torch.Tensor, 
+            device:  Union[torch.device, str] = "cpu"
+    ):
         """
         Args:
             mu (torch.Tensor): Mean vector of the considered data.
@@ -167,26 +175,27 @@ class PCAProjector(StaticProjector):
             V (torch.Tensor): principal directions
         """
         super().__init__()
-        self.mu = mu
-        self.lambdas = lambdas
-        self.V = V
+        self.mu = mu.to(device)
+        self.lambdas = lambdas.to(device)
+        self.V = V.to(device)
     
     def forward(self, x:torch.Tensor) :
-        x = torch.matmul(
-            x.transpose(1,3).sub(self.mu), 
-            self.V)
-        return x.div(self.lambdas).transpose(1,3)
+        @color_operation
+        def fn(_x: torch.Tensor):
+            return (_x - self.mu) @ self.V / self.lambdas
+        return fn(x)
     
     def back_project(self, x:torch.Tensor) :
-        x = x.transpose(1,3).mul(self.lambdas)
-        x = torch.matmul(x, self.V.transpose(0,1))
-        return x.add(self.mu).transpose(1,3)
+        @color_operation
+        def fn(_x: torch.Tensor):
+            return (_x * self.lambdas) @ self.V.transpose(0,1) + self.mu
+        return fn(x)
 
 class PCA:
     """Implements PCA trainig and plotting processes based on multispectral
     images.
     """
-    def __init__(self,  A:torch.Tensor, npixels:int, ncomp:int=3):
+    def __init__(self, A:torch.Tensor, npixels:int, ncomp:int=3):
         """
         Args:
             A (torch.Tensor): batch of images on which PCA needs to be 

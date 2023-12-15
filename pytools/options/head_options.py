@@ -13,8 +13,7 @@ __all__ = ["HeadOptions", "CoachOptions"]
 
 class HeadOptions :
 
-    def __init__(self, config:Union[str, dict, None]=None) -> None:
-
+    def _initialize_options(self, config:Union[str, dict, None]=None) -> None:
         if isinstance(config, str) :
             with open(config, "r") as ymlfile:
                 self._cfg = yaml.load(ymlfile, Loader=yaml.CFullLoader)
@@ -32,7 +31,7 @@ class HeadOptions :
         _cfg = {}
         for key, value in self.__dict__.items() :
             if isinstance(value, Options) :
-                _cfg[key[:-7].lower()] = vars(value)
+                _cfg[key[:-8].lower()] = vars(value)
         return _cfg
         
     def dump_configfile(self, logdir:str) :
