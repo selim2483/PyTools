@@ -4,9 +4,9 @@ import numpy as np
 
 import rasterio
 import torch
-import torch.nn as nn
 from torch.utils.data import Dataset
 from torchvision.transforms import functional as F
+from rich.progress import Progress, MofNCompleteColumn
 
 from .mask_crop import get_mask_crop
 
@@ -119,3 +119,41 @@ class DatasetS2Random(Dataset) :
     
     def __len__(self):
         return len(self.img_names)
+    
+class MakeDatasetS2:
+
+    def __init__(
+            self, 
+            root:str, 
+            nbands:int=11, 
+            height:int=256, 
+            width:int=256, 
+            mode:int="multispectral",
+            s:int=0.8,
+            **kwargs) :
+        
+        self.dataset = DatasetS2Random(
+            root=root, 
+            nbands=nbands,
+            height=height,
+            width=width,
+            mode=mode,
+            s=s
+        )
+
+    def save(self, new_root: str, n: int):
+        i = 0
+        with Progress(
+            *Progress.get_default_columns(), 
+            MofNCompleteColumn()
+        ) as progress :
+            task = progress.add_task("Images", total=n)
+            while i < n:
+                torch.save(
+                    self.dataset[i], 
+                    os.path.join(new_root, f"{self.dataset.img_names[i]}.pt")
+                )
+                i += 1
+                progress.advance(task)
+
+                

@@ -1,18 +1,27 @@
 import os
+import torch
 
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.utils import save_image
+from torchvision.transforms.functional import to_tensor
+from PIL import Image
 
 from . import console_print, profiled_function, map_dict
 from .images import scale_tensor
 from ..options import LoggingOptions
 from ..utils.path import generate_unique_path
 
+
+def load_image_from_png(path: str):
+    return 2 * to_tensor(Image.open(path))[:3] - 1
+
 class TrainingLogs:
 
     job_name: str
     logging_options: LoggingOptions
     global_step: int
+    metric_dict: dict
+    data_count: int | None
 
     @property
     def progress_key(self):
@@ -76,23 +85,48 @@ class TrainingLogs:
             metric_dict
         )
     
-    def log_images_tensorboard(self, img_dict: dict):
-        map_dict(
-            lambda key, value: self.logger.add_image(
-                f"images/{key}", 
-                scale_tensor(value, in_range=(-1., 1.), out_range=(0., 1.)),  
-                self.progress_key
-            ), 
-            img_dict
-        )
-    
-    def log_images_local(self, img_dict: dict):
-        def fn(key, value):
-            name = f"{self.job_name}_it{self.progress_key}_{key}.png"
+    def log_images_tensorboard(self, img_dict: dict, grid: bool = True):
+        def fn(key: str, value: torch.Tensor):
             img = scale_tensor(
                 value, in_range=(-1., 1.), out_range=(0., 1.))
-            save_image(img, os.path.join(self.figdir, name))
+            if value.ndim == 4:
+                if grid:
+                    self.logger.add_images(
+                        f"images/{key}", img, self.progress_key)
+                else:
+                    for i, val in enumerate(img):
+                        self.logger.add_image(
+                            f"images/{key}_{self.data_count + i}", 
+                            val, 
+                            self.progress_key
+                        )
+            else:
+                self.logger.add_image(f"images/{key}", img, self.progress_key)
+        
         map_dict(fn, img_dict)
+    
+    def log_images_local(self, img_dict: dict, grid: bool = True):
+        def fn(key: str, value: torch.Tensor):
+            if value.ndim == 4 and not grid:
+                for i, val in enumerate(value):
+                    name = (f"{self.job_name}_it{self.progress_key}_{key}" 
+                            + f"_{self.data_count + i}")
+                    torch.save(val, os.path.join(self.figdir, f"{name}.pt"))
+                    save_image(
+                        val, 
+                        os.path.join(self.figdir, f"{name}.png"), 
+                        value_range=(-1., 1.)
+                    )
+            else:
+                name = f"{self.job_name}_it{self.progress_key}_{key}"
+                torch.save(value, os.path.join(self.figdir, f"{name}.pt"))
+                save_image(
+                    value, 
+                    os.path.join(self.figdir, f"{name}.png"), 
+                    value_range=(-1., 1.)
+                )
+        map_dict(fn, img_dict)
+            
 
     def check_image_interval(self, mode:str="local") :
         if self.progress_key == 0:
@@ -122,14 +156,23 @@ class TrainingLogs:
     def parse_images(self) -> dict:
         raise NotImplementedError
     
-    def parse_and_log_images(self):
+    def parse_and_log_images(self, grid: bool = True):
         if self.check_image_interval("both") :
             img_dict = self.parse_images()
             
             if self.check_image_interval("local") :
-                self.log_images_local(img_dict)
+                self.log_images_local(img_dict, grid=grid)
             if self.check_image_interval("logger") :
-                self.log_images_tensorboard(img_dict)
+                self.log_images_tensorboard(img_dict, grid=grid)
 
             self.update_logger_counters()
+
+    def add_metric(self, name: str, value: torch.Tensor):
+        if value.numel() == 1:
+            self.metric_dict[name] = float(value)
+        elif self.data_count is not None:
+            for i, val in enumerate(value):
+                self.add_metric(f"{name}_{self.data_count + i}", val)
+        else: 
+            raise ValueError()
     

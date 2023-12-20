@@ -10,7 +10,8 @@ import torch.nn.functional as F
 from torch.types import _float
 
 from ..utils.checks import assert_dim, assert_shape
-from ..utils.misc import unsqueeze_squeeze, color_operation
+from ..utils.color import color_operation
+from ..utils.misc import unsqueeze_squeeze
 
 __all__ = [
     "RandomProjector", "SampleProjector", "KDEProjector", "PCAProjector",

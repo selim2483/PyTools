@@ -3,7 +3,6 @@ from typing import Union
 import torch
 import torchvision
 
-from ..logging import console_print
 from ..options import VGGOptions
 from ..utils.misc import unsqueeze_squeeze
 
