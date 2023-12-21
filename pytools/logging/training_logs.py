@@ -113,15 +113,20 @@ class TrainingLogs:
                             + f"_{self.data_count + i}")
                     torch.save(val, os.path.join(self.figdir, f"{name}.pt"))
                     save_image(
-                        val, 
+                        scale_tensor(
+                            val, in_range=(-1., 1.), out_range=(0., 1.)), 
                         os.path.join(self.figdir, f"{name}.png"), 
                         value_range=(-1., 1.)
                     )
             else:
                 name = f"{self.job_name}_it{self.progress_key}_{key}"
                 torch.save(value, os.path.join(self.figdir, f"{name}.pt"))
+                reload_pt = torch.load(
+                    os.path.join(self.figdir, f"{name}.pt"))
+                print(key, float(torch.dist(value, reload_pt)))
                 save_image(
-                    value, 
+                    scale_tensor(
+                        value, in_range=(-1., 1.), out_range=(0., 1.)), 
                     os.path.join(self.figdir, f"{name}.png"), 
                     value_range=(-1., 1.)
                 )
