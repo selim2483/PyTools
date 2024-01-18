@@ -12,7 +12,7 @@ import torchvision
 from ..utils.checks import assert_dim, assert_shape
 from ..utils.misc import unsqueeze_squeeze
 
-@unsqueeze_squeeze
+@unsqueeze_squeeze()
 def mean_project(x: torch.Tensor, nc_out: int) :
     nc_in = x.shape[1]
     kernel_size = ceil(nc_in / nc_out)
@@ -53,7 +53,7 @@ def to_rgb(
     assert_dim(img, ndim=3)
     
     if format=="sentinel2" :
-        assert_shape(img, (None, 11, None, None))
+        assert_shape(img, (11, None, None))
         return {
             reformat("rgb", name) : img[1:4],
             reformat("nir", name) : img[[4, 6, 7]],

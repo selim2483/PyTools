@@ -13,7 +13,8 @@ from typing import Any, Union
 from ..options.options import OptimizerOptions
 from ..options.head_options import CoachOptions
 from ..logging import mean_loss_dict, console_print, profiled_function 
-from ..logging import LoggingDir
+from ..logging import TrainingLogs
+from ..utils.misc import get_device
 
 
 @dataclass
@@ -41,7 +42,7 @@ class Phase :
         self.opt         = opt
         self.opt_options = opt_options
 
-class Coach(CoachOptions) :
+class Coach(CoachOptions, TrainingLogs) :
     """Base class embedding training loop.
     It embeds basic training, validation, logging and model saving 
     functionnalities.
@@ -55,16 +56,14 @@ class Coach(CoachOptions) :
             self, 
             options  :Union[str, dict], 
             job_name :str, 
-            **kwargs :dict
         ) :
-        super().__init__(options)
         self.job_name = job_name
         self.global_step = 0
         self.nimg = 0
         self.console = Console()
+        self.device = get_device()
 
-        self.get_device()
-
+        self._initialize_options(options)
         self._initialize_logger()
         self._initialize_dataset()
         self._initialize_loss()
@@ -99,52 +98,6 @@ class Coach(CoachOptions) :
             return self.kimg
     
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Initializers ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ #
-
-    def get_device(self) -> torch.device : 
-        """Check the availability of the GPU.
-
-        Returns:
-            (torch.device): device to use : cuda (GPU) or cpu.
-        """
-        device = torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu")
-        print("Device name : ", torch.cuda.get_device_name())
-        print("Device name : ", torch.cuda.get_device_properties(device))
-        print("")
-
-        torch.cuda.empty_cache()
-
-        self.device = device
-
-    @profiled_function
-    @console_print("Initializing Logger")
-    def _initialize_logger(self) :
-        """Initializes logger : tensorboard, wandb or local.
-        """
-        print(self.logging_options)
-        valid_logger = ["tensorboard", "wandb", "local"]
-        if self.logging_options.logger in valid_logger :
-            logging_dir = LoggingDir(self.logging_options.toplogdir)
-            self.logdir, self.figdir, self.chkdir = logging_dir.mkdirs(
-                self.job_name)
-        self.dump_configfile(logdir=self.logdir)
-        
-        if self.logging_options.logger == "tensorboard" :
-            self.logger = SummaryWriter(log_dir=self.logdir)
-            self.dump_configfile(self.chkdir)
-        elif self.logging_options.logger == "wandb" :
-            # TODO
-            # self.logger = wandb.init(
-            #     project=self.logging_options.project,
-            #     entity=self.logging_options.entity,
-            #     name=self.job_name
-            # )
-            self.dump_configfile(self.chkdir)
-        elif self.logging_options.logger == "local":
-            self.logger = None
-            self.dump_configfile(self.chkdir)
-        else :
-            self.logger = None
     
     def _initialize_dataset(self) :
         raise NotImplementedError

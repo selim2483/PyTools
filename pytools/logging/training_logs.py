@@ -121,9 +121,6 @@ class TrainingLogs:
             else:
                 name = f"{self.job_name}_it{self.progress_key}_{key}"
                 torch.save(value, os.path.join(self.figdir, f"{name}.pt"))
-                reload_pt = torch.load(
-                    os.path.join(self.figdir, f"{name}.pt"))
-                print(key, float(torch.dist(value, reload_pt)))
                 save_image(
                     scale_tensor(
                         value, in_range=(-1., 1.), out_range=(0., 1.)), 
@@ -173,7 +170,9 @@ class TrainingLogs:
             self.update_logger_counters()
 
     def add_metric(self, name: str, value: torch.Tensor):
-        if value.numel() == 1:
+        if value.numel() == 0:
+            pass
+        elif value.numel() == 1:
             self.metric_dict[name] = float(value)
         elif self.data_count is not None:
             for i, val in enumerate(value):

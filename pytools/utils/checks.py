@@ -77,6 +77,17 @@ def assert_shape(tensor:torch.Tensor, ref_shape:Iterable):
             raise AssertionError(f'Wrong size for dimension {idx}: got \
 {size}, expected {ref_size}')
         
+def assert_shapes(tensor:torch.Tensor, *ref_shapes: Iterable[Iterable]):
+    assert_count = 0
+    for ref_shape in ref_shapes:
+        try: 
+            assert_shape(tensor, ref_shape)
+        except AssertionError:
+            assert_count += 1
+    if assert_count == len(ref_shapes):
+        raise AssertionError(f'Wrong shape for tensor of shape \
+{tensor.shape}, expected one of the following shapes: {ref_shapes}')
+        
 def assert_dim(
         tensor:torch.Tensor, 
         ndim:Union[_int, None]=None, 

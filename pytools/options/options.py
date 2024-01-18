@@ -58,7 +58,7 @@ class Options :
 
 @dataclass(repr=False)
 class DataOptions(Options) :
-    path        :str
+    root        :str
     type        :str              = "sentinel2_random"
     format      :str              = "sentinel"
     treshold    :str              = 0.8
@@ -67,7 +67,8 @@ class DataOptions(Options) :
     use_labels  :bool             = False
     random_seed :int              = 0
     augment     :bool             = True
-    nchannels   :int              = 11
+    nbands      :int              = 11
+    mode        :Union[str, list] = "rgb"
         
 @dataclass(repr=False)
 class LoggingOptions(Options) :
@@ -114,12 +115,14 @@ class OptimizerOptions(Options) :
         
 @dataclass(repr=False)
 class TrainingOptions(Options) :
-    max_steps :Union[int, None] = None
-    max_kimg  :Union[int, None] = None
+    batch_size: Union[int, None] = None
+    max_steps:  Union[int, None] = None
+    max_kimg:   Union[int, None] = None
 
 @dataclass(repr=False)
-class VGGOptions(Options):
+class VGGOptions(Options): 
     path:           str
+    mode:           str         = "rgb" # rgb, freeze, init, raw
     layers:         List[int]   = field(
         default_factory=lambda: [1, 6, 11, 20, 29])
     layers_weights: List[float] = field(

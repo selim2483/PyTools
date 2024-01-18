@@ -9,18 +9,38 @@ from ..utils.misc import unsqueeze_squeeze
 
 MEAN = (0.485, 0.456, 0.406)
 
-def initialize_vgg_rgb(
-    vgg_options: VGGOptions, device: Union[torch.device, str] = "cpu") :
-    """Instantiate VGG19 network and load pretrained wheigts.
+@unsqueeze_squeeze()
+def prep(x:torch.Tensor):
+    if x.shape[1]==3 :
+        mean = torch.as_tensor(MEAN).view(-1, 1, 1).to(x.device)
+    else :
+        mean = torch.as_tensor([0.5]*x.shape[1]).view(-1, 1, 1).to(x.device)
+    x = x / 2 + .5
+    return x.sub_(mean).mul_(255)
+
+def initialize_vgg(
+    vgg_options: VGGOptions, 
+    nbands:      int                      = 3, 
+    device:      Union[torch.device, str] = "cpu"
+):
+    """Instantiate a VGG19 network and load pretrained wheigts.
     The model uses a hook to retrieve the wanted feature maps, the latter
     are accessible after a call to ``vgg`` in ``outputs``.
     """
     print(vgg_options)
-    vgg = torchvision.models.vgg19().features.to(device)
-    pretrained_dict = torch.load(vgg_options.path)
-    for param, item in zip(vgg.parameters(), pretrained_dict.keys()):
-        param.data = pretrained_dict[item].type(torch.FloatTensor).to(device)
-    vgg.requires_grad_(False)
+    if vgg_options.mode == "rgb":
+        vgg = torchvision.models.vgg19().features.to(device)
+    else:
+        vgg = VGGMS(nbands, vgg_options.batchnorm)
+    
+    if vgg_options.mode != "raw":
+        pretrained_dict = torch.load(vgg_options.path)
+        for param, item in zip(vgg.parameters(), pretrained_dict.keys()):
+            if vgg_options.mode == "rgb" or "conv1_1" not in item:
+                param.data = pretrained_dict[item].type(
+                        torch.FloatTensor).to(device)
+                if vgg_options.mode in ["rgb", "freeze"]:
+                    param.requires_grad = False 
 
     outputs = {}
     def save_output(name):
@@ -31,15 +51,6 @@ def initialize_vgg_rgb(
     for layer in vgg_options.layers:
         handle = vgg[layer].register_forward_hook(save_output(layer))
 
-    @unsqueeze_squeeze()
-    def prep(x:torch.Tensor):
-        if x.shape[1]==3 :
-            mean = torch.as_tensor(MEAN).view(-1, 1, 1).to(device)
-        else :
-            mean = torch.as_tensor([0.5]*x.shape[1]).view(-1, 1, 1).to(device)
-        x = x / 2 + .5
-        return x.sub_(mean).mul_(255)
-    
     def get_features(x:torch.Tensor):
         vgg(prep(x.to(device)))
         return [outputs[key] for key in vgg_options.layers]
@@ -98,11 +109,11 @@ class VGGBlock(torch.nn.Module) :
 
 class VGGMS(torch.nn.Module) :
 
-    def __init__(self, batchnorm:bool=False):
+    def __init__(self, nbands: int, batchnorm: bool = False):
         super().__init__()
 
         self.blocks = torch.nn.Sequential(
-            VGGBlock(11, 64, 2, batchnorm=batchnorm),
+            VGGBlock(nbands, 64, 2, batchnorm=batchnorm),
             VGGBlock(64, 128, 2, batchnorm=batchnorm),
             VGGBlock(128, 256, 4, batchnorm=batchnorm),
             VGGBlock(256, 512, 4, batchnorm=batchnorm),

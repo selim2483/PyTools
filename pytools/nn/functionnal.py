@@ -34,6 +34,10 @@ def instance_norm2d(x:torch.Tensor):
     return normalize(x, dim=(-2,-1))
 
 @type_check
+def ada_in(x: torch.Tensor, mu: torch.Tensor, sigma: torch.Tensor):
+    return sigma * instance_norm2d(x) + mu
+
+@type_check
 def adain_map(
     x     :torch.Tensor, 
     mu    :torch.Tensor, 

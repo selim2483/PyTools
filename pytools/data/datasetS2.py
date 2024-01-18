@@ -101,7 +101,7 @@ class DatasetS2Random(Dataset) :
         self.img_names = os.listdir(self.root)
         self.nbands = nbands
         self.height, self.width = height, width
-        self.band_indexs = get_band_indexs(mode)
+        self.band_indexs = get_band_indexs(self.nbands)
         self.s = s
 
     def __getitem__(self, index):

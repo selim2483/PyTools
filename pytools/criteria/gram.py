@@ -4,11 +4,11 @@ import torch
 import torch.nn as nn
 
 from ..criteria.loss import reduce_loss, Loss
-from ..nn import RandomProjector, initialize_vgg_rgb
+from ..nn import RandomProjector, initialize_vgg
 from ..nn.functionnal import compute_gram_matrix
 from ..options import VGGOptions
 from ..utils.checks import assert_shape, type_check
-from ..utils.misc import tensor2list
+from ..utils.misc import tensor2list, unsqueeze_squeeze
 
 
 LAYERS         = [1, 6, 11, 20, 29]
@@ -175,7 +175,7 @@ class GatysLoss(Loss):
                     "Either 'vgg_fn' or 'vgg_options' arguments should be\
     provided to provide a way to extract vgg19 feature maps.")
             else:
-                _, _, self.vgg_fn = initialize_vgg_rgb(
+                _, _, self.vgg_fn = initialize_vgg(
                     vgg_options, device=self.device)
                 self.weigths = vgg_options.layers_weights
         else:
@@ -216,24 +216,25 @@ class GatysStochasticLoss(GatysLoss):
             device      = device
         )
         self.inchannels = inchannels
-        self.ntriplets = min(
-            nstyle, inchannels * (inchannels - 1) * (inchannels - 2))
+        ntriplets_max = inchannels * (inchannels - 1) * (inchannels - 2)
+        self.ntriplets = min(nstyle, ntriplets_max)
         self.random_projector = RandomProjector(
-            inchannels, outchannels, determinist=self.ntriplets<=nstyle)
+            inchannels, outchannels, determinist=(nstyle >= ntriplets_max))
         self.loss_dict = dict()
-        
+    
     def loss_fn(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        b = x.shape[0]
-        style_loss_stochastic = torch.zeros(b, device=self.device)
+        style_loss_stochastic = torch.zeros(
+            x.shape[0] if x.ndim == 4 else 1, device=self.device)
 
         # For logging/inferences purposes
         for band in range(self.inchannels) :
-            self.loss_dict[f"style_loss_band_{band}"] = []
+            self.loss_dict[f"style_loss_band_{band}"] = torch.Tensor().to(
+                self.device)
 
         for _ in range(self.ntriplets):
             style_loss = gram_loss_mse(
-                self.vgg_fn(x), 
-                self.vgg_fn(y), 
+                self.vgg_fn(self.random_projector(x)), 
+                self.vgg_fn(self.random_projector(y)), 
                 weights=self.weights, 
                 center_gram=self.center_gram,
                 reduction='none',
@@ -242,8 +243,10 @@ class GatysStochasticLoss(GatysLoss):
 
             # Add style loss to the concerned bands
             for band in self.random_projector.channels :
-                self.loss_dict[f"texture_loss_band_{band}"] += tensor2list(
-                    style_loss)
+                self.loss_dict[f"style_loss_band_{band}"] = torch.cat([
+                    self.loss_dict[f"style_loss_band_{band}"],
+                    style_loss.detach().view(1)
+                ])
                 
             style_loss_stochastic += style_loss
             self.random_projector.generate()
