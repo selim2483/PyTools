@@ -1,3 +1,5 @@
+import itertools
+import random
 from typing import Callable, Iterable, List, Optional, Union
 
 import torch
@@ -250,5 +252,68 @@ class GatysStochasticLoss(GatysLoss):
                 
             style_loss_stochastic += style_loss
             self.random_projector.generate()
+
+        return style_loss_stochastic / self.ntriplets
+    
+class GatysStochasticLossAdvanced(GatysLoss):
+
+    def __init__(
+            self, 
+            nstyle:      int,
+            inchannels:  int,
+            outchannels: int,      
+            vgg_fn:      Optional[Callable]            = None,
+            weights:     Union[Iterable, torch.Tensor] = LAYERS_WEIGHTS, 
+            vgg_options: VGGOptions                    = None,                   
+            center_gram: bool                          = True,
+            reduction:   str                           = 'mean', 
+            device:      Union[torch.device, str]      = 'cpu'
+    ):
+        super().__init__(
+            vgg_fn      = vgg_fn, 
+            weights     = weights, 
+            vgg_options = vgg_options,
+            center_gram = center_gram,
+            reduction   = reduction,
+            device      = device
+        )
+        self.inchannels = inchannels
+        ntriplets_max = inchannels * (inchannels - 1) * (inchannels - 2)
+        self.ntriplets = min(nstyle, ntriplets_max)
+        self.triplets = list(itertools.permutations(
+            range(self.inchannels), outchannels))
+        self.loss_dict = dict()
+        self.new_channels()
+
+    def new_channels(self):
+        self.channels = random.choices(self.triplets, k=self.ntriplets)
+
+    def loss_fn(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        style_loss_stochastic = torch.zeros(
+            x.shape[0] if x.ndim == 4 else 1, device=self.device)
+
+        # For logging/inferences purposes
+        for band in range(self.inchannels) :
+            self.loss_dict[f"style_loss_band_{band}"] = torch.Tensor().to(
+                self.device)
+
+        for channels in self.channels:
+            style_loss = gram_loss_mse(
+                self.vgg_fn(x[..., channels, :, :]), 
+                self.vgg_fn(y[..., channels, :, :]), 
+                weights=self.weights, 
+                center_gram=self.center_gram,
+                reduction='none',
+                device=self.device
+            )
+
+            # Add style loss to the concerned bands
+            for band in channels :
+                self.loss_dict[f"style_loss_band_{band}"] = torch.cat([
+                    self.loss_dict[f"style_loss_band_{band}"],
+                    style_loss.detach().view(1)
+                ])
+                
+            style_loss_stochastic += style_loss
 
         return style_loss_stochastic / self.ntriplets

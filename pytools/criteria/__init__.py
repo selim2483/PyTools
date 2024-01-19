@@ -6,7 +6,7 @@ from .slice import (
     slice_tensors, sliced_function, sliced, sliced_distance)
 from .gradients import image_gradient
 from .gram import (
-    GramLoss, GatysLoss, GatysStochasticLoss,
+    GramLoss, GatysLoss, GatysStochasticLoss, GatysStochasticLossAdvanced,
     gram_loss_mse, gram_loss_mse_layer)
 from .histograms import (
     HistogramLoss, 

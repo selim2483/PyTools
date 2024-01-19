@@ -35,6 +35,7 @@ class TrainingLogs:
         print(self.logging_options)
         valid_logger = ["tensorboard", "wandb", "local"]
         if self.logging_options.logger in valid_logger :
+            self.mkdir(self.logging_options.toplogdir)
             self.mkdirs(self.logging_options.toplogdir, self.job_name)
         
         if self.logging_options.logger == "tensorboard" :
@@ -178,5 +179,6 @@ class TrainingLogs:
             for i, val in enumerate(value):
                 self.add_metric(f"{name}_{self.data_count + i}", val)
         else: 
+            print(name, value)
             raise ValueError()
     
