@@ -78,13 +78,16 @@ def get_device() -> torch.device :
     Returns:
         (torch.device): device to use : cuda (GPU) or cpu.
     """
-    device = torch.device(
-        "cuda" if torch.cuda.is_available() else "cpu")
-    print("Device name : ", torch.cuda.get_device_name())
-    print("Device name : ", torch.cuda.get_device_properties(device))
-    print("")
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+        print("Device name : ", torch.cuda.get_device_name())
+        print("Device name : ", torch.cuda.get_device_properties(device))
+        torch.cuda.empty_cache()
+    else:
+        device = torch.device("cpu")
+        print("Device name : CPU")
 
-    torch.cuda.empty_cache()
+    print("")
 
     return device
 
