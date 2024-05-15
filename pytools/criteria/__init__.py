@@ -8,7 +8,7 @@ from .gradients import image_gradient
 from .gram import (
     GramLoss, GatysLoss, GatysStochasticLoss, GatysStochasticLossAdvanced, 
     GatysStochasticColorLoss,
-    gram_loss_mse, gram_loss_mse_layer)
+    feature_loss, feature_loss_layer)
 from .histograms import (
     HistogramLoss, 
     histogram_loss1D, sliced_histogram_loss)

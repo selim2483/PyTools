@@ -1,4 +1,5 @@
 from functools import wraps
+from itertools import islice
 import re
 import sys
 from typing import Any, Callable, Iterable, Optional, Tuple
@@ -100,3 +101,21 @@ def tensor2list(x:torch.Tensor) :
         x = x.unsqueeze(0)
     return list(x.detach().cpu().numpy())
 
+def batch_iter(iterable, n=1):
+    l = len(iterable)
+    for ndx in range(0, l, n):
+        yield iterable[ndx:min(ndx + n, l)]
+
+def batched(iterable, n):
+    # batched('ABCDEFG', 3) → ABC DEF G
+    if n < 1:
+        raise ValueError('n must be at least one')
+    it = iter(iterable)
+    while batch := tuple(islice(it, n)):
+        yield batch
+
+def map_dict(fn: Callable[[str, Any], Any], _dict: dict):
+    res_dict = {}
+    for key, value in _dict.items():
+        res_dict[key] = fn(key, value)
+    return res_dict

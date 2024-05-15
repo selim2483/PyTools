@@ -21,25 +21,20 @@ def separate_paths(image_path:str) :
     return mask, img
 
 def get_band_indexs(mode:str) :
-    if mode=="grey" :
-        return [2]
-    elif mode=="rgb" :
-        return [2, 3, 4]
-    elif mode=="multispectral" :
-        return list(range(1, 12))
+    if isinstance(mode, list):
+        return mode
+    elif isinstance(mode, str):
+        if mode=="grey" :
+            return [1]
+        elif mode=="rgb" :
+            return [1,2,3]
+    else:
+        return list(range(1, mode))
     
 def load_image_sentinel2(
         path: str, mode: Union[str, list], height: int, width: int):
     
-    if mode in ["grey", "rgb", "multispectral"]:
-        band_indexs = get_band_indexs(mode)
-    elif isinstance(mode, str):
-        band_indexs = get_band_indexs("multispectral")
-    elif isinstance(mode, list):
-        band_indexs = mode
-    else:
-        raise ValueError("mode should be 'str' or a list of indexs.")
-    
+    band_indexs = get_band_indexs(mode)
     img = np.empty(
             (len(band_indexs), height, width), dtype="uint8")
     
@@ -99,9 +94,9 @@ class DatasetS2Random(Dataset) :
         
         self.root = root
         self.img_names = os.listdir(self.root)
-        self.nbands = nbands
         self.height, self.width = height, width
-        self.band_indexs = get_band_indexs(self.nbands)
+        self.band_indexs = get_band_indexs(nbands)
+        self.nbands = len(self.band_indexs)
         self.s = s
 
     def __getitem__(self, index):
@@ -113,7 +108,8 @@ class DatasetS2Random(Dataset) :
         
         img = torch.load(
             os.path.join(path, img_path), 
-            map_location='cpu')[:, x:x + self.width, y:y + self.height]
+            map_location='cpu'
+        )[self.band_indexs, x:x + self.width, y:y + self.height]
 
         return img
     

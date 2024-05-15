@@ -6,6 +6,15 @@ from ..utils.checks import type_check
 from ..utils.misc import unsqueeze_squeeze
 from .slice import SliceLoss, sliced_distance
 
+@unsqueeze_squeeze(ndim=3)
+def interpolate_histogram(x_sorted: torch.Tensor, y_indices: torch.Tensor):
+    return F.interpolate(
+        input                  = x_sorted, 
+        size                   = y_indices.shape[-1],
+        mode                   = 'nearest', 
+        recompute_scale_factor = False
+    )
+
 @type_check
 @unsqueeze_squeeze(ndim=3, ntensors=2)
 def histogram_loss1D(x:torch.Tensor, y:torch.Tensor, p:int=2) -> torch.Tensor:
@@ -19,23 +28,21 @@ def histogram_loss1D(x:torch.Tensor, y:torch.Tensor, p:int=2) -> torch.Tensor:
     Returns:
         torch.Tensor: histogram distances.
     """
-    x_sorted, x_indices = torch.sort(x[..., 0])
-    y_sorted, y_indices = torch.sort(y[..., 0])
+    x_sorted, x_indices = torch.sort(x.flatten(start_dim=-2))
+    y_sorted, y_indices = torch.sort(y.flatten(start_dim=-2))
 
-    stretched_y_proj = F.interpolate(
-        input                  = y_sorted.unsqueeze(1), 
-        size                   = y_indices.shape[-1],
-        mode                   = 'nearest', 
-        recompute_scale_factor = False
-    ) # handles a generated image larger than the ground truth 
-    diff = (stretched_y_proj[:, 0] - x_sorted) #[inv(indices)]
+    if x_indices.shape[-1] > y_indices.shape[-1]:
+        y_sorted = interpolate_histogram(y_sorted, x_indices)
+    elif x_indices.shape[-1] < y_indices.shape[-1]:
+        x_sorted = interpolate_histogram(x_sorted, y_indices)
 
-    return .5 * torch.mean(diff**p, dim=-1)
+    return .5 * torch.mean((y_sorted - x_sorted)**p, dim=-1)
 
 def sliced_histogram_loss(
         x:torch.Tensor, y:torch.Tensor, p:int=2,
         nslice:Union[int, None]=None, 
-        device:Union[torch.device, str]="cpu"
+        device:Union[torch.device, str]="cpu",
+        **kwargs
 ) -> torch.Tensor:
     """Computes sliced histogram distance between two images :
 
@@ -60,7 +67,7 @@ def sliced_histogram_loss(
         torch.Tensor: sliced histogram distances.
     """
     return sliced_distance(
-        histogram_loss1D, x, y, p=p, nslice=nslice, device=device)
+        histogram_loss1D, x, y, p=p, nslice=nslice, device=device, **kwargs)
 
 class HistogramLoss(SliceLoss):
     """Histogram Loss module.

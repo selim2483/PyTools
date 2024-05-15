@@ -11,7 +11,7 @@ from torch.types import _float
 
 from ..utils.checks import assert_dim, assert_shape
 from ..utils.color import color_operation
-from ..utils.misc import unsqueeze_squeeze
+from ..utils.misc import unsqueeze_squeeze, batch_iter
 
 __all__ = [
     "RandomProjector", "SampleProjector", "KDEProjector", "PCAProjector",
@@ -30,6 +30,49 @@ class StaticProjector(torch.nn.Module):
             self.__setattr__(k, v)
 
 
+# class RandomProjector(torch.nn.Module):
+#     """Implements a module that projects multispectral into 3 dimensionnal
+#     color space by selecting 3 random channels.
+#     For consistent training, the random channels need to be generated using
+#     the method provided for this purpose. 
+#     """
+#     def __init__(
+#             self, inchannels: int, outchannels: int, determinist: bool = False):
+#         """
+#         Args:
+#             inchannels (int): number of channels of input images.
+#             outchannels (int): number of channels of output images.
+#             determinist (bool, optional): whether to test every
+#             possible arrangements in a deterministic order to avoid
+#             duplication. 
+#             This feature is usefull in the case of testing.
+#             If ``True``, :meth:`generate` changes the projection channels
+#             to the next arrangement.
+#             If ``False``, :meth:`generate` generates a new random
+#             arrangement.
+#             Defaults to ``False``.
+#         """
+#         super().__init__()
+#         self.inchannels = inchannels
+#         self.outchannels = min(inchannels, outchannels)
+#         self.determinist = determinist
+#         self.triplets = itertools.cycle(
+#             itertools.permutations(range(self.inchannels), self.outchannels))
+#         self.generate()
+
+#     def generate(self) :
+#         """Generates a new arrangement, random if :attr:`determinist` is
+#         ``False``, determinist if ``True``.
+#         """
+#         if self.determinist:
+#             self.channels = next(self.triplets)
+#         else:
+#             self.channels = random.sample(
+#                 range(self.inchannels), self.outchannels)
+
+#     def forward(self, x:torch.Tensor) :
+#         return x[..., self.channels, :, :]
+    
 class RandomProjector(torch.nn.Module):
     """Implements a module that projects multispectral into 3 dimensionnal
     color space by selecting 3 random channels.
@@ -37,7 +80,12 @@ class RandomProjector(torch.nn.Module):
     the method provided for this purpose. 
     """
     def __init__(
-            self, inchannels: int, outchannels: int, determinist: bool=False):
+            self, 
+            inchannels:  int, 
+            outchannels: int, 
+            batch_size:  int  = 1, 
+            determinist: bool = False
+        ):
         """
         Args:
             inchannels (int): number of channels of input images.
@@ -53,28 +101,25 @@ class RandomProjector(torch.nn.Module):
             Defaults to ``False``.
         """
         super().__init__()
-        self.inchannels = inchannels
+        self.inchannels  = inchannels
         self.outchannels = min(inchannels, outchannels)
+        self.batch_size  = batch_size
         self.determinist = determinist
-        if self.determinist :
-            self.triplets = itertools.permutations(
-                range(self.inchannels), self.outchannels)
+
+        self.triplets = list(itertools.permutations(
+            range(self.inchannels), self.outchannels))
+        self.triplets_iter = itertools.cycle(batch_iter(
+            self.triplets, n=self.batch_size))
         self.generate()
 
     def generate(self) :
         """Generates a new arrangement, random if :attr:`determinist` is
         ``False``, determinist if ``True``.
         """
-        if self.determinist :
-            try : 
-                self.channels = next(self.triplets)
-            except StopIteration :
-                self.triplets = itertools.permutations(
-                    range(self.inchannels), self.outchannels)
-                self.channels = next(self.triplets)
-        else :
-            self.channels = random.sample(
-                range(self.inchannels), self.outchannels)
+        if self.determinist:
+            self.channels = next(self.triplets_iter)
+        else:
+            self.channels = random.sample(list(self.triplets), k=self.batch_size)
 
     def forward(self, x:torch.Tensor) :
         return x[..., self.channels, :, :]

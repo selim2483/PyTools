@@ -7,9 +7,10 @@ __all__ = ["periodic_smooth_decomposition"]
 
 @unsqueeze_squeeze(ndim=3)
 def periodic_smooth_decomposition(
-        u: torch.Tensor, 
-        inverse_dft: bool=True, 
-        device: Union[torch.device, str] = "cpu"
+        u:           torch.Tensor, 
+        inverse_dft: bool                     = True, 
+        smooth_comp: bool                     = False,
+        device:      Union[torch.device, str] = "cpu"
 ) -> Tuple[torch.Tensor]:
     """Computes periodic + smooth decomposition from Moisan's paper
     (https://link.springer.com/article/10.1007/s10851-010-0227-1). When
@@ -64,7 +65,13 @@ def periodic_smooth_decomposition(
 
     if inverse_dft:
         s = torch.fft.ifft2(s_dft).real
-        return u.real - s, s
+        if smooth_comp:
+            return u.real - s, s
+        else:
+            return u.real - s
     else:
         u_dft = torch.fft.fft2(u)
-        return u_dft - s_dft, s_dft
+        if smooth_comp:
+            return u_dft - s_dft, s_dft
+        else:
+            return u_dft - s_dft

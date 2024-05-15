@@ -48,10 +48,10 @@ def spectrum_ortho_loss1D(
         torch.Tensor: spectral distance in image space
     """
     if remove_cross :
-        x_fft, _ = periodic_smooth_decomposition(
+        x_fft = periodic_smooth_decomposition(
             x, inverse_dft=False, device=device)
         x_fft = torch.fft.fftshift(x_fft, dim=(-2,-1)) 
-        y_fft, _ = periodic_smooth_decomposition(
+        y_fft = periodic_smooth_decomposition(
             y, inverse_dft=False, device=device)
         y_fft = torch.fft.fftshift(y_fft, dim=(-2,-1)) 
     else :
@@ -70,7 +70,8 @@ def sliced_spectrum_ortho_loss(
         p            :int                      = 2, 
         remove_cross :bool                     = True,
         nslice       :Union[int, None]         = None, 
-        device       :Union[torch.device, str] = "cpu"
+        device       :Union[torch.device, str] = "cpu",
+        **kwargs
 ) -> torch.Tensor:
     """Computes sliced spectral distance in the image space :
 
@@ -101,7 +102,8 @@ def sliced_spectrum_ortho_loss(
     return sliced_distance(
         spectrum_ortho_loss1D, 
         x, y, p=p, remove_cross=remove_cross, 
-        nslice=nslice, device=device
+        nslice=nslice, device=device, 
+        **kwargs
     )
 
 class SpectralOrthoLoss(SliceLoss):
@@ -149,8 +151,8 @@ def spectral_loss1D(x:torch.Tensor, y:torch.Tensor, p:int=2) -> torch.Tensor:
     b, h, w = x.shape
     assert_shape(y, (b, h, w))
 
-    fpx, _ = periodic_smooth_decomposition(x, inverse_dft=False)
-    fpy, _ = periodic_smooth_decomposition(y, inverse_dft=False)
+    fpx = periodic_smooth_decomposition(x, inverse_dft=False)
+    fpy = periodic_smooth_decomposition(y, inverse_dft=False)
     fpx, fpy = fpx / (h * w), fpy / (h * w)
     
     return torch.sqrt(torch.mean(
@@ -161,7 +163,8 @@ def sliced_spectral_loss(
         y            :torch.Tensor, 
         p            :int                      = 2, 
         nslice       :Union[int, None]         = None, 
-        device       :Union[torch.device, str] = "cpu"
+        device       :Union[torch.device, str] = "cpu",
+        **kwargs
 ) -> torch.Tensor:
     """Computes sliced PSD distance :
 
@@ -186,7 +189,7 @@ def sliced_spectral_loss(
         torch.Tensor: sliced PSD distance.
     """
     return sliced_distance(
-        spectral_loss1D, x, y, p=p, nslice=nslice, device=device)
+        spectral_loss1D, x, y, p=p, nslice=nslice, device=device, **kwargs)
 
 class SpectralLoss(SliceLoss):
     """PSD loss module.
@@ -211,7 +214,7 @@ class SpectralLoss(SliceLoss):
 
 # -------------------------- Radial spectral loss -------------------------- #
 
-@unsqueeze_squeeze(ndim=3)
+@unsqueeze_squeeze(ndim=4)
 def radial_profile(
         img      :torch.Tensor, 
         bin_size :int                      = 1, 
@@ -232,11 +235,12 @@ def radial_profile(
     Returns:
         torch.Tensor: Radial profile(s)
     """
-    b, h, w = img.shape
-    fp, _= periodic_smooth_decomposition(img, inverse_dft=False)
+    b, c, h, w = img.shape
+    img = img.reshape(b * c, h, w)
+    fp = periodic_smooth_decomposition(img, inverse_dft=False)
     
     fpshift = torch.fft.fftshift(fp, dim=(-2,-1)) / (h*w)
-    mod = fpshift.abs().view(b, -1)**2
+    mod = fpshift.abs().view(b * c, -1)**2
 
     xx, yy = torch.meshgrid(
         torch.arange(fpshift.shape[-2]), 
@@ -248,19 +252,19 @@ def radial_profile(
     # make crowns over which compute the histogram, larger crowns (bin_size>1)
     # should get faster computations
     crowns = (r / bin_size).type(torch.int64).repeat(
-        (b, 1)).view(b, -1).to(device)
+        (b * c, 1)).view(b * c, -1).to(device)
 
     # compute histogram
     values_sum = torch.zeros(
-        b, int(crowns.max() + 1), dtype=mod.dtype, device=device)
+        b * c, int(crowns.max() + 1), dtype=mod.dtype, device=device)
     values_sum = values_sum.scatter_add_(1, crowns, mod)
     crowns_sum = torch.zeros(
-        b, int(crowns.max() + 1), dtype=mod.dtype, device=device)
+        b * c, int(crowns.max() + 1), dtype=mod.dtype, device=device)
     crowns_sum = crowns_sum.scatter_add_(
         1, crowns, torch.ones(mod.shape, dtype=mod.dtype, device=device))
     rad = values_sum / crowns_sum
 
-    return rad
+    return rad.view(b, c, -1)
 
 @unsqueeze_squeeze(ndim=3, ntensors=2)
 def radial_spectral_loss1D(
@@ -287,7 +291,8 @@ def sliced_radial_spectral_loss(
         y            :torch.Tensor, 
         p            :int                      = 2, 
         nslice       :Union[int, None]         = None, 
-        device       :Union[torch.device, str] = "cpu"
+        device       :Union[torch.device, str] = "cpu",
+        **kwargs
 ) -> torch.Tensor:
     """Computes sliced radial PSD distance :
 
@@ -312,7 +317,10 @@ def sliced_radial_spectral_loss(
         torch.Tensor: sliced radial PSD distance.
     """
     return sliced_distance(
-        radial_spectral_loss1D, x, y, p=p, nslice=nslice, device=device)
+        radial_spectral_loss1D, 
+        x, y, p=p, nslice=nslice, device=device,
+        **kwargs
+    )
 
 class RadialSpectralLoss(SliceLoss):
     """Radial PSD loss module.

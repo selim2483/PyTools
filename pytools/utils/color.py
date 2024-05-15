@@ -64,7 +64,12 @@ def transform_color_statistics(
 
 def matrix_power(mat: torch.Tensor, p: float):
     d, v = torch.linalg.eigh(mat)
-    return (v * torch.pow(d, p)) @ v.T
+    d2 = torch.max(d, torch.zeros_like(d))
+    if (d < 0).any():
+        print("Negative eigenvalue encountered. Replaced by 0.")
+        print(d)
+        print(d2)
+    return (v * torch.pow(d2, p)) @ v.T
 
 def transport_optimal_statistics(
         img1: torch.Tensor | Iterable[torch.Tensor],
@@ -112,19 +117,30 @@ def transport_optimal_statistics(
 
 def gaussian_barycenter(
         lambdas: torch.Tensor, sigmas: torch.Tensor, tol: float = 1e-20):
-    S = torch.pow(torch.mean(torch.sqrt(sigmas), axis=0), 2)
+    S = torch.pow(torch.mean(torch.sqrt(torch.abs(sigmas)), dim=0), 2)
 
     n = 0
     while True:
         n += 1
-        d, v = torch.linalg.eigh(S)
+        try :
+            d, v = torch.linalg.eigh(S)
+        except:
+            print(n, S)
         s = (v * torch.pow(d, .5)) @ v.T
         s_inv = (v * torch.pow(d, -.5)) @ v.T
         G = torch.zeros_like(s)
-        for li, Si in zip(lambdas, sigmas):
+        for i, (li, Si) in enumerate(zip(lambdas, sigmas)):
             G += li * matrix_power(s @ Si @ s, .5)
+            if torch.isnan(G).any():
+                print(i, Si)
+                print("s @ Si @ s", s @ Si @ s)
+                d, v = torch.linalg.eigh(s @ Si @ s)
+                print("d", d)
+                print("v", v)
+                print("matrix_power(s @ Si @ s, .5)", matrix_power(s @ Si @ s, .5))
+                break
         G = s_inv @ G @ G @ s_inv
-
+        
         eps = float(torch.trace(S + G - 2 * matrix_power(s @ G @ s, .5)))
         # if n == 1:
         #     lvl = int(math.log(eps, 10)) + 1
@@ -143,6 +159,7 @@ def multispectral_barycenter(
         ord: bool  = True
     ):
     mu, sigma = autocov(img)
+    print(mu, sigma)
     if ord == True:
         triplets = list(itertools.permutations(range(len(sigma)), 3))
     else:

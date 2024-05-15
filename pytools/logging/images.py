@@ -53,13 +53,20 @@ def to_rgb(
     assert_dim(img, ndim=3)
     
     if format=="sentinel2" :
-        assert_shape(img, (11, None, None))
-        return {
-            reformat("rgb", name) : img[1:4],
-            reformat("nir", name) : img[[4, 6, 7]],
-            reformat("swir", name) : img[[8, 9, 10]],
-            reformat("global", name) : mean_project(img, 3)
-        }
+        if img.shape[0] == 11:
+            return {
+                reformat("rgb", name) : img[1:4],
+                reformat("nir", name) : img[[4, 6, 7]],
+                reformat("swir", name) : img[[8, 9, 10]],
+                reformat("global", name) : mean_project(img, 3)
+            }
+        elif img.shape[0] == 9:
+            return {
+                reformat("rgb", name): img[:3],
+                reformat("nir", name): img[3:6],
+                reformat("swir", name): img[6:],
+                reformat("global", name): mean_project(img, 3)
+            }
     else :
         return {reformat(format, name) : img[:3]}
     

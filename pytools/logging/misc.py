@@ -75,9 +75,3 @@ def log_images(
 ):
     for key, value in image_dict.items():
         logger.add_image(f"{dirname}/{key}" if dirname else key, value, step)
-
-def map_dict(fn: Callable[[str, Any], Any], _dict: dict):
-    res_dict = {}
-    for key, value in _dict.items():
-        res_dict[key] = fn(key, value)
-    return res_dict

@@ -6,10 +6,11 @@ from torchvision.utils import save_image
 from torchvision.transforms.functional import to_tensor
 from PIL import Image
 
-from . import console_print, profiled_function, map_dict
+from . import console_print, profiled_function
 from .images import scale_tensor
 from ..options import LoggingOptions
 from ..utils.path import generate_unique_path
+from ..utils.misc import map_dict
 
 
 def load_image_from_png(path: str):
@@ -78,11 +79,10 @@ class TrainingLogs:
         self.mkdir(trainfigdir)
         self.mkdir(validfigdir)
 
-    def log_metrics_tensorboard(
-            self, metric_dict: dict, dir: str = "metrics"):
+    def log_metrics_tensorboard(self, metric_dict: dict):
         return map_dict(
             lambda key, value: self.logger.add_scalar(
-                f"{dir}/{key}", value, self.progress_key),
+                key, value, self.progress_key),
             metric_dict
         )
     

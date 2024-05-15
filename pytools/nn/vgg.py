@@ -11,10 +11,10 @@ MEAN = (0.485, 0.456, 0.406)
 
 @unsqueeze_squeeze()
 def prep(x:torch.Tensor):
-    if x.shape[1]==3 :
+    if x.shape[-3]==3 :
         mean = torch.as_tensor(MEAN).view(-1, 1, 1).to(x.device)
     else :
-        mean = torch.as_tensor([0.5]*x.shape[1]).view(-1, 1, 1).to(x.device)
+        mean = torch.as_tensor([0.5]*x.shape[-3]).view(-1, 1, 1).to(x.device)
     x = x / 2 + .5
     return x.sub_(mean).mul_(255)
 

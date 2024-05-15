@@ -1,4 +1,5 @@
 from functools import wraps
+from math import ceil
 from typing import Tuple, Union, Protocol, runtime_checkable
 
 import torch
@@ -18,7 +19,10 @@ def slice_tensors(
 
     if isinstance(args, torch.Tensor):
         assert_dim(args, min_ndim=3)
-        return args.transpose(-3, -1) @ v
+        if v.ndim == 2:
+            return (args.transpose(-3, -1) @ v).transpose(-1,-3)
+        else:
+            return args.transpose(-3, -1) @ v
     elif isinstance(args, tuple):
         tensors = ()
         for arg in args:
@@ -32,10 +36,11 @@ Tensors, given was {type(args)}.")
 
 @type_check
 def sliced_function(
-    fn:     TensorCallable, 
-    ntensors:  int,
-    nslice: int, 
-    device: Union[torch.device, str]="cpu"
+    fn:         TensorCallable, 
+    ntensors:   int,
+    nslice:     int,
+    batch_size: Union[int, None]         = None,
+    device:     Union[torch.device, str] = "cpu",
 ):
     """Wraps a univariate function that compute a distance between two
     univariate tensors into a function that computes the corresponding random
@@ -53,6 +58,9 @@ def sliced_function(
         Callable[[torch.Tensor, torch.Tensor, ...], torch.Tensor]: randomly
         sliced distance function
     """
+    if batch_size is None:
+        batch_size = nslice
+
     @wraps(fn)
     @unsqueeze_squeeze(ntensors=ntensors)
     def sliced_fn(*args, **kwargs):
@@ -72,16 +80,41 @@ def sliced_function(
                 **kwargs
             )
 
-        return res
+        return res / nslice
     
-    return sliced_fn
+    @wraps(fn)
+    @unsqueeze_squeeze(ntensors=ntensors)
+    def sliced_fn_vectorize(*args, **kwargs):
+        assert isinstance(args[0], torch.Tensor), "input should be a tensor"
+        b, c, _, _ = args[0].shape
+        res = torch.zeros(b, device=device)
+
+        if "device" in fn.__annotations__.keys():
+            kwargs["device"] = device
+
+        res = []
+        for _ in range(ceil(nslice / batch_size)):
+            vs = torch.randn(
+                batch_size, c, dtype=args[0].dtype, device=device)
+            res.append(fn(
+                *slice_tensors(
+                    args[:ntensors], 
+                    (vs / vs.norm(2, dim=0)).transpose(-1,-2)), 
+                *args[ntensors:], 
+                **kwargs
+            ))
+
+        return torch.cat(res).view(nslice, -1).squeeze().mean(dim=0)
+    
+    return sliced_fn_vectorize
 
 def sliced(
-    fn:        TensorCallable, 
+    fn:         TensorCallable, 
     *args,
-    ntensors:  int,
-    nslice:    Union[int, None]         = None, 
-    device:    Union[torch.device, str] = "cpu",
+    ntensors:   int,
+    nslice:     Union[int, None]         = None, 
+    batch_size: Union[int, None]         = None,
+    device:     Union[torch.device, str] = "cpu",
     **kwargs
 ) -> torch.Tensor:
     """Slices a function.
@@ -95,9 +128,12 @@ def sliced(
     Returns:
         _type_: _description_
     """
-    fn_sliced = sliced_function(
-        fn, ntensors=ntensors, nslice=nslice, device=device)
-    return fn_sliced(*args, **kwargs)
+    return sliced_function(
+        fn, 
+        ntensors   = ntensors, 
+        nslice     = nslice, 
+        batch_size = batch_size, 
+        device     = device)(*args, **kwargs)
 
 @type_check
 def band_slice(
@@ -143,13 +179,22 @@ def band_slice(
     return sliced_fn 
 
 def sliced_distance(
-    fn:     TensorCallable, 
+    fn:         TensorCallable, 
     *args,
-    nslice: Union[int, None]         = None, 
-    device: Union[torch.device, str] = "cpu",
+    nslice:     Union[int, None]         = None, 
+    batch_size: Union[int, None]         = None,
+    device:     Union[torch.device, str] = "cpu",
     **kwargs
 ) -> torch.Tensor:
-    return sliced(fn, *args, ntensors=2, nslice=nslice, device=device, **kwargs)
+    return sliced(
+        fn, 
+        *args, 
+        ntensors   = 2, 
+        nslice     = nslice, 
+        device     = device, 
+        batch_size = batch_size, 
+        **kwargs
+    )
     
 class SliceLoss(Loss):
     """Basic sliced loss module. 
